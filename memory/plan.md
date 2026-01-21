@@ -236,14 +236,149 @@ python main.py -v                        # Verbose TUI output
 
 ---
 
-## Implementation Phases
+## Implementation Phases (Strict TDD)
 
-- [ ] **Phase 1**: Core skeleton (Network, NeuronState, Simulation without learning)
-- [ ] **Phase 2**: Config loader and CLI
-- [ ] **Phase 3**: Event bus
-- [ ] **Phase 4**: Basic visualization (Pygame)
-- [ ] **Phase 5**: Hebbian learning + STDP
-- [ ] **Phase 6**: Matplotlib analytics
-- [ ] **Phase 7**: TUI logger + output recorder
-- [ ] **Phase 8**: Backend abstraction (JAX support)
-- [ ] **Phase 9**: Oja rule + advanced plasticity
+Each phase follows RED → GREEN → REFACTOR:
+1. **RED**: Write failing tests first
+2. **GREEN**: Implement minimal code to pass
+3. **REFACTOR**: Clean up while keeping tests green
+
+### Test Organization
+```
+test/
+├── unit/           # Fast, isolated, mocked dependencies
+├── integration/    # Components working together
+├── property/       # Hypothesis-based invariant tests
+└── conftest.py     # Shared fixtures
+```
+
+---
+
+### Phase 1: Core Skeleton
+**Modules**: `core/network.py`, `core/neuron_state.py`, `core/simulation.py`
+
+- [ ] **RED**: Write failing unit tests
+  - [ ] `test/unit/test_network.py` - positions in bounds, link matrix shape, weight initialization
+  - [ ] `test/unit/test_neuron_state.py` - firing array shape, threshold validation
+  - [ ] `test/unit/test_simulation.py` - state enum transitions, step increment
+- [ ] **RED**: Write failing integration tests
+  - [ ] `test/integration/test_simulation_core.py` - Simulation uses Network + NeuronState correctly
+- [ ] **RED**: Write failing property tests
+  - [ ] `test/property/test_network_props.py` - positions always in bounds, link matrix matches distance
+  - [ ] `test/property/test_simulation_props.py` - step count always increases
+- [ ] **GREEN**: Implement `core/network.py`
+- [ ] **GREEN**: Implement `core/neuron_state.py`
+- [ ] **GREEN**: Implement `core/simulation.py`
+- [ ] **REFACTOR**: Clean up core module
+
+---
+
+### Phase 2: Config Loader and CLI
+**Modules**: `config/loader.py`, `main.py` CLI
+
+- [ ] **RED**: Write failing unit tests
+  - [ ] `test/unit/test_config_loader.py` - TOML parsing, validation errors, defaults
+- [ ] **RED**: Write failing integration tests
+  - [ ] `test/integration/test_cli.py` - CLI loads config and creates Simulation
+- [ ] **RED**: Write failing property tests
+  - [ ] `test/property/test_config_props.py` - any valid config produces valid Simulation
+- [ ] **GREEN**: Implement `config/loader.py`
+- [ ] **GREEN**: Implement CLI in `main.py`
+- [ ] **REFACTOR**: Clean up config module
+
+---
+
+### Phase 3: Event Bus
+**Modules**: `events/bus.py`
+
+- [ ] **RED**: Write failing unit tests
+  - [ ] `test/unit/test_event_bus.py` - subscribe, emit, multiple handlers, type filtering
+- [ ] **RED**: Write failing integration tests
+  - [ ] `test/integration/test_simulation_events.py` - Simulation emits events on step/reset
+- [ ] **RED**: Write failing property tests
+  - [ ] `test/property/test_event_bus_props.py` - all subscribed handlers receive events
+- [ ] **GREEN**: Implement `events/bus.py`
+- [ ] **GREEN**: Integrate events into `core/simulation.py`
+- [ ] **REFACTOR**: Clean up events module
+
+---
+
+### Phase 4: Pygame Visualization
+**Modules**: `visualization/pygame_view.py`
+
+> **Note**: Visualization tests skipped (tested by running)
+
+- [ ] Implement `visualization/pygame_view.py`
+- [ ] Manual testing: verify 3D rendering, controls work
+
+---
+
+### Phase 5: Hebbian Learning + STDP
+**Modules**: `learning/hebbian.py`
+
+- [ ] **RED**: Write failing unit tests
+  - [ ] `test/unit/test_hebbian.py` - LTP increases weights, LTD decreases, bounds respected
+- [ ] **RED**: Write failing integration tests
+  - [ ] `test/integration/test_learning_simulation.py` - Simulation applies learning each step
+- [ ] **RED**: Write failing property tests
+  - [ ] `test/property/test_hebbian_props.py` - weights always in [min, max], STDP timing effects
+- [ ] **GREEN**: Implement `learning/hebbian.py`
+- [ ] **GREEN**: Integrate learning into `core/simulation.py`
+- [ ] **REFACTOR**: Clean up learning module
+
+---
+
+### Phase 6: Matplotlib Analytics
+**Modules**: `visualization/matplotlib_view.py`
+
+> **Note**: Visualization tests skipped (tested by running)
+
+- [ ] Implement `visualization/matplotlib_view.py`
+- [ ] Manual testing: verify plots update correctly
+
+---
+
+### Phase 7: TUI Logger + Output Recorder
+**Modules**: `visualization/tui_logger.py`, `output/recorder.py`
+
+- [ ] **RED**: Write failing unit tests
+  - [ ] `test/unit/test_tui_logger.py` - output format, handles step events
+  - [ ] `test/unit/test_recorder.py` - CSV format, NPZ structure
+- [ ] **RED**: Write failing integration tests
+  - [ ] `test/integration/test_headless_run.py` - full simulation with TUI + recorder
+- [ ] **RED**: Write failing property tests
+  - [ ] `test/property/test_recorder_props.py` - recorded steps match simulation steps
+- [ ] **GREEN**: Implement `visualization/tui_logger.py`
+- [ ] **GREEN**: Implement `output/recorder.py`
+- [ ] **REFACTOR**: Clean up output module
+
+---
+
+### Phase 8: Backend Abstraction (JAX)
+**Modules**: `core/backend.py`
+
+- [ ] **RED**: Write failing unit tests
+  - [ ] `test/unit/test_backend.py` - NumPy backend operations
+- [ ] **RED**: Write failing integration tests
+  - [ ] `test/integration/test_backend_simulation.py` - Simulation works with NumPy backend
+- [ ] **RED**: Write failing property tests
+  - [ ] `test/property/test_backend_props.py` - NumPy and JAX produce equivalent results
+- [ ] **GREEN**: Implement `core/backend.py` (NumPy)
+- [ ] **GREEN**: Implement JAX backend (optional, if JAX available)
+- [ ] **GREEN**: Refactor core modules to use backend
+- [ ] **REFACTOR**: Clean up backend abstraction
+
+---
+
+### Phase 9: Oja Rule + Advanced Plasticity
+**Modules**: `learning/oja.py`
+
+- [ ] **RED**: Write failing unit tests
+  - [ ] `test/unit/test_oja.py` - weight normalization, decay behavior
+- [ ] **RED**: Write failing integration tests
+  - [ ] `test/integration/test_oja_simulation.py` - Oja rule integrates with Simulation
+- [ ] **RED**: Write failing property tests
+  - [ ] `test/property/test_oja_props.py` - weights converge, norm bounded
+- [ ] **GREEN**: Implement `learning/oja.py`
+- [ ] **GREEN**: Integrate Oja rule option into Simulation
+- [ ] **REFACTOR**: Clean up plasticity options
