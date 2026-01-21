@@ -1,15 +1,15 @@
 ---
-name: boid-project-workflow
-description: Use for all boid simulation project work - manages memory files for plans, queries, tests, and commits
+name: neural-cellular-automata-project-workflow
+description: Use for all neural cellular automata project workflow - manages memory files for plans, queries, tests, and commits
 ---
 
-# Boid Project Workflow
+# Neural cellular automata Project Workflow
 
 ## Overview
 
-This skill manages the boid simulation C++ project with persistent memory files. All work flows through these memory files to maintain project state and history.
+This skill manages the neural cellular automata python project with persistent memory files. All work flows through these memory files to maintain project state and history.
 
-**Announce at start:** "I'm using the boid-project-workflow skill."
+**Announce at start:** "I'm using the workflows kill."
 
 ## Memory Files
 
