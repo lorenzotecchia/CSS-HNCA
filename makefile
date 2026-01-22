@@ -118,20 +118,33 @@ test-fast:  ## Run tests in parallel (uses all CPUs)
 	$(PYTHON) -m pytest $(TEST_DIR)/ -v -n $(NCPUS)
 
 .PHONY: test-cov
-test-cov:  ## Run tests with coverage report
-	$(PYTHON) -m pytest $(TEST_DIR)/ -v --cov=$(SRC_DIR) --cov-report=html --cov-report=term-missing
+test-cov:  ## Run tests with coverage report (terminal + HTML)
+	$(PYTHON) -m pytest $(TEST_DIR)/ --cov=$(SRC_DIR) --cov-report=html --cov-report=term-missing
+	@echo "HTML report: file://$(PWD)/htmlcov/index.html"
+
+.PHONY: test-cov-fail
+test-cov-fail:  ## Run tests with coverage, fail if below 80%
+	$(PYTHON) -m pytest $(TEST_DIR)/ --cov=$(SRC_DIR) --cov-fail-under=80 --cov-report=term-missing
+
+.PHONY: test-cov-xml
+test-cov-xml:  ## Run tests with XML coverage report (for CI)
+	$(PYTHON) -m pytest $(TEST_DIR)/ --cov=$(SRC_DIR) --cov-report=xml --cov-report=term-missing
 
 .PHONY: test-watch
 test-watch:  ## Run tests on file change (requires pytest-watch)
 	$(PYTHON) -m pytest_watch -- $(TEST_DIR)/ -v
 
 .PHONY: test-unit
-test-unit:  ## Run only unit tests (marked with @pytest.mark.unit)
-	$(PYTHON) -m pytest $(TEST_DIR)/ -v -m unit
+test-unit:  ## Run only unit tests
+	$(PYTHON) -m pytest $(TEST_DIR)/unit/ -v
 
 .PHONY: test-integration
-test-integration:  ## Run only integration tests (marked with @pytest.mark.integration)
-	$(PYTHON) -m pytest $(TEST_DIR)/ -v -m integration
+test-integration:  ## Run only integration tests
+	$(PYTHON) -m pytest $(TEST_DIR)/integration/ -v
+
+.PHONY: test-property
+test-property:  ## Run only property-based tests
+	$(PYTHON) -m pytest $(TEST_DIR)/property/ -v
 
 .PHONY: test-slow
 test-slow:  ## Run slow tests (marked with @pytest.mark.slow)

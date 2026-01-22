@@ -11,6 +11,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
+    "pytest-cov>=4.0.0",
     "hypothesis>=6.100.0",
 ]
 gpu = [
@@ -22,3 +23,23 @@ testpaths = ["test"]
 python_files = "test_*.py"
 python_functions = "test_*"
 addopts = "-v"
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+omit = [
+    "src/visualization/pygame_view.py",
+    "src/visualization/matplotlib_view.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
+fail_under = 80
+show_missing = true
+
+[tool.coverage.html]
+directory = "htmlcov"
