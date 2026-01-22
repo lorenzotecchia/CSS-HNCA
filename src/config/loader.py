@@ -50,13 +50,15 @@ class LearningConfig:
         threshold: Firing threshold γ
         learning_rate: l parameter for LTP
         forgetting_rate: f parameter for LTD
-        decay_alpha: α parameter for Oja/decay
+        decay_alpha: Baseline weight decay rate
+        oja_alpha: Oja rule decay coefficient
     """
 
     threshold: float
     learning_rate: float
     forgetting_rate: float
     decay_alpha: float
+    oja_alpha: float
 
 
 @dataclass(frozen=True)
@@ -177,6 +179,7 @@ def _parse_learning_config(data: dict[str, Any]) -> LearningConfig:
         learning_rate=float(data["learning_rate"]),
         forgetting_rate=float(data["forgetting_rate"]),
         decay_alpha=float(data["decay_alpha"]),
+        oja_alpha=float(data.get("oja_alpha", 0.0)),
     )
 
 

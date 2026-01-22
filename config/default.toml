@@ -15,7 +15,8 @@ reset_potential = 1.0          # LIF: amount subtracted after firing
 threshold = 0.5
 learning_rate = 0.01
 forgetting_rate = 0.005
-decay_alpha = 0.001
+decay_alpha = 0.001              # Baseline weight decay rate
+oja_alpha = 0.001                # Oja rule decay coefficient
 
 [visualization]
 pygame_enabled = true

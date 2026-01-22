@@ -71,11 +71,13 @@ class TestLearningConfig:
             learning_rate=0.01,
             forgetting_rate=0.005,
             decay_alpha=0.001,
+            oja_alpha=0.001,
         )
         assert config.threshold == 0.5
         assert config.learning_rate == 0.01
         assert config.forgetting_rate == 0.005
         assert config.decay_alpha == 0.001
+        assert config.oja_alpha == 0.001
 
     def test_learning_config_is_frozen(self):
         """LearningConfig should be immutable (frozen)."""
@@ -84,6 +86,7 @@ class TestLearningConfig:
             learning_rate=0.01,
             forgetting_rate=0.005,
             decay_alpha=0.001,
+            oja_alpha=0.001,
         )
         with pytest.raises(AttributeError):
             config.threshold = 0.8
@@ -141,6 +144,7 @@ class TestSimulationConfig:
             learning_rate=0.01,
             forgetting_rate=0.005,
             decay_alpha=0.001,
+            oja_alpha=0.001,
         )
         visualization = VisualizationConfig(
             pygame_enabled=True,
@@ -178,6 +182,7 @@ class TestSimulationConfig:
             learning_rate=0.01,
             forgetting_rate=0.005,
             decay_alpha=0.001,
+            oja_alpha=0.001,
         )
         visualization = VisualizationConfig(
             pygame_enabled=True,

@@ -98,6 +98,7 @@ def valid_learning_config(draw):
         learning_rate=draw(valid_learning_rate),
         forgetting_rate=draw(valid_learning_rate),
         decay_alpha=draw(valid_learning_rate),
+        oja_alpha=draw(st.floats(min_value=0.0, max_value=0.1, allow_nan=False, allow_infinity=False)),
     )
 
 
