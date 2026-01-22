@@ -38,3 +38,7 @@
 ## [2026-01-22] e843616
 **Message:** feat(phase7): TUI Logger + Output Recorder
 **Changes:** Implemented TUILogger for terminal output and Recorder for CSV/NPZ persistence. 35 new tests (unit, integration, property). 197 total tests passing.
+
+## [2026-01-22] 2574349
+**Message:** feat(phase6): Matplotlib Analytics visualization
+**Changes:** MatplotlibAnalyticsView with firing/weight line plots, histogram, and optional heatmap. Demo script included.
