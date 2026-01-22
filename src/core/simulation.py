@@ -3,13 +3,19 @@
 Orchestrates the network evolution with state updates and learning.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum, auto
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from src.core.network import Network
 from src.core.neuron_state import NeuronState
+
+if TYPE_CHECKING:
+    from src.learning.hebbian import HebbianLearner
 
 
 class SimulationState(Enum):
@@ -37,6 +43,7 @@ class Simulation:
     state: NeuronState
     learning_rate: float
     forgetting_rate: float
+    learner: HebbianLearner | None = None
     time_step: int = field(default=0, init=False)
     sim_state: SimulationState = field(default=SimulationState.STOPPED, init=False)
 
@@ -64,7 +71,11 @@ class Simulation:
 
         Computes: v(t) = W^T · s(t-1)
         Updates firing state based on threshold.
+        Applies Hebbian learning if learner is configured.
         """
+        # Store previous firing state for STDP (before update)
+        firing_prev = self.state.firing.copy()
+
         # Compute input to each neuron: v = W^T · s
         # W[i,j] = weight from i to j
         # v[j] = sum over i of W[i,j] * s[i] = (W^T · s)[j]
@@ -72,6 +83,16 @@ class Simulation:
 
         # Update neuron state
         self.state.update_firing(input_signal)
+
+        # Apply Hebbian learning if learner is configured
+        if self.learner is not None:
+            new_weights = self.learner.apply(
+                weights=self.network.weight_matrix,
+                link_matrix=self.network.link_matrix,
+                firing_prev=firing_prev,
+                firing_current=self.state.firing,
+            )
+            self.network.weight_matrix[:] = new_weights
 
         # Increment time
         self.time_step += 1
