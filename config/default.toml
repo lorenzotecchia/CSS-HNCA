@@ -1,0 +1,23 @@
+seed = 42
+
+[network]
+n_neurons = 300
+box_size = [10.0, 10.0, 10.0]
+radius = 2.5
+initial_weight = 0.1
+weight_min = 0.0
+weight_max = 1.0
+initial_firing_fraction = 0.1  # 10% of neurons fire at t=0
+
+[learning]
+threshold = 0.5
+learning_rate = 0.01
+forgetting_rate = 0.005
+decay_alpha = 0.001
+
+[visualization]
+pygame_enabled = true
+matplotlib_enabled = true
+window_width = 800
+window_height = 600
+fps = 30
