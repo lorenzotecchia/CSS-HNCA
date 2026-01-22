@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/lorenzotecchia/Documents/UNI/FirstYear/Lectures/SemOne/ComplexSysSim/css-programming/CSS-HNCA worktree add:*)",
+      "Bash(python -m pytest:*)",
+      "Bash(git -C /Users/lorenzotecchia/Documents/UNI/FirstYear/Lectures/SemOne/ComplexSysSim/css-programming/CSS-HNCA add src/learning/hebbian.py src/core/simulation.py test/unit/test_hebbian.py test/integration/test_learning_simulation.py test/property/test_hebbian_props.py)",
+      "Bash(git -C /Users/lorenzotecchia/Documents/UNI/FirstYear/Lectures/SemOne/ComplexSysSim/css-programming/CSS-HNCA commit -m \"$\\(cat <<''EOF''\nfeat: implement Phase 5 Hebbian learning with STDP \\(TDD complete\\)\n\nAdd STDP-based Hebbian learning rule:\n- LTP: w_AB += l when A\\(t-1\\)=1 and B\\(t\\)=1 \\(causal\\)\n- LTD: w_AB -= f when B\\(t-1\\)=1 and A\\(t\\)=1 \\(anti-causal\\)\n- Weight bounds enforced [w_min, w_max]\n\nIntegrate HebbianLearner into Simulation.step\\(\\) as optional learner.\n\nAll 125 tests passing \\(unit, integration, property-based\\).\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+    ]
+  }
+}

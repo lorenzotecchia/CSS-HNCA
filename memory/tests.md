@@ -66,3 +66,31 @@ make test          # Run all tests
 make test-fast     # Run tests in parallel
 make test-cov      # Run with coverage report
 ```
+
+## Phase 7: TUI Logger + Output Recorder
+
+### test/unit/test_tui_logger.py (10 tests)
+- **TestTUILoggerCreation**: default stream, custom stream
+- **TestTUILoggerOutput**: format, padding, large steps, decimals, zeros
+- **TestTUILoggerMultipleSteps**: sequential logging
+- **TestTUILoggerVerbosity**: silent mode, verbose mode
+
+### test/unit/test_recorder.py (15 tests)
+- **TestRecorderCreation**: directory, auto-create, intervals
+- **TestRecorderCSV**: file creation, header, data format, appending
+- **TestRecorderNPZ**: snapshot creation, weight matrix, time step, naming
+- **TestRecorderAutoSnapshot**: interval saving
+- **TestRecorderClose**: flush behavior
+
+### test/integration/test_headless_run.py (5 tests)
+- **TestHeadlessSimulationWithTUI**: logs all steps
+- **TestHeadlessSimulationWithRecorder**: captures all steps, saves snapshots
+- **TestHeadlessSimulationWithBoth**: combined TUI and recorder
+- **TestRecorderDataIntegrity**: firing count matches
+
+### test/property/test_recorder_props.py (5 tests)
+- **TestRecorderStepCountProperty**: CSV row count matches steps
+- **TestRecorderTimeStepOrdering**: time steps sequential
+- **TestRecorderSnapshotProperty**: snapshot count matches interval
+- **TestRecorderDataPreservation**: values preserved
+- **TestRecorderWeightMatrixPreservation**: weight matrix preserved
