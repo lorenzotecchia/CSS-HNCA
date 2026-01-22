@@ -1,7 +1,7 @@
 # Test Coverage Report
 
 **Last Updated**: 2026-01-22
-**Total Tests**: 162
+**Total Tests**: 212
 **Status**: ALL PASSING
 
 ## Test Summary by Category
@@ -15,6 +15,9 @@
 | `test_simulation.py` | SimulationState, creation, start/pause/step/reset, metrics | PASS |
 | `test_hebbian.py` | LTP/LTD, weight bounds, STDP timing effects | PASS |
 | `test_config_loader.py` | TOML parsing, validation, defaults, error handling | PASS |
+| `test_event_bus.py` | Subscribe, emit, unsubscribe, multiple handlers, type filtering | PASS |
+| `test_tui_logger.py` | TUI output format, step event handling | PASS |
+| `test_recorder.py` | CSV format, NPZ structure | PASS |
 
 ### Integration Tests (test/integration/)
 
@@ -23,6 +26,8 @@
 | `test_simulation_core.py` | Simulation with Network + NeuronState, dynamics, determinism | PASS |
 | `test_learning_simulation.py` | Hebbian learning integration, LTP/LTD in simulation | PASS |
 | `test_cli.py` | CLI config loading, headless mode, flags, error handling | PASS |
+| `test_simulation_events.py` | Simulation emits StepEvent/ResetEvent, event bus integration | PASS |
+| `test_headless_run.py` | Full simulation with TUI + recorder | PASS |
 
 ### Property-Based Tests (test/property/)
 
@@ -32,6 +37,8 @@
 | `test_simulation_props.py` | Step count monotonicity, state invariants | PASS |
 | `test_hebbian_props.py` | Weight bounds invariants, STDP properties | PASS |
 | `test_config_props.py` | Valid configs produce valid simulations | PASS |
+| `test_event_bus_props.py` | All handlers receive events, type isolation | PASS |
+| `test_recorder_props.py` | Recorded steps match simulation steps | PASS |
 
 ## Test Files Structure
 
@@ -45,18 +52,25 @@ test/
 │   ├── test_neuron_state.py
 │   ├── test_simulation.py
 │   ├── test_hebbian.py
-│   └── test_config_loader.py
+│   ├── test_config_loader.py
+│   ├── test_event_bus.py
+│   ├── test_tui_logger.py
+│   └── test_recorder.py
 ├── integration/
 │   ├── __init__.py
 │   ├── test_simulation_core.py
 │   ├── test_learning_simulation.py
-│   └── test_cli.py
+│   ├── test_cli.py
+│   ├── test_simulation_events.py
+│   └── test_headless_run.py
 └── property/
     ├── __init__.py
     ├── test_network_props.py
     ├── test_simulation_props.py
     ├── test_hebbian_props.py
-    └── test_config_props.py
+    ├── test_config_props.py
+    ├── test_event_bus_props.py
+    └── test_recorder_props.py
 ```
 
 ## Running Tests

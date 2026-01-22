@@ -89,3 +89,55 @@ git worktree prune
 - **Dependencies:** Each worktree needs its own venv. Run `make venv && source .venv/bin/activate && make install` in each.
 - **Independent phases:** Phases 3, 4, 6, 7 can be developed in parallel (they only depend on core).
 - **Sequential phases:** Phase 1 must complete before most others. Phase 5 (learning) integrates with Phase 1 (core).
+
+---
+
+## Development Commands
+
+### Testing
+
+```bash
+# Run all tests (212 tests)
+make test
+
+# Run tests in parallel (faster)
+make test-fast
+
+# Run with coverage report
+make test-cov
+
+# Run specific test categories
+python -m pytest test/unit/ -v          # Unit tests only
+python -m pytest test/integration/ -v   # Integration tests only
+python -m pytest test/property/ -v      # Property-based tests only
+
+# Run tests for a specific module
+python -m pytest test/unit/test_event_bus.py -v
+```
+
+### Linting
+
+```bash
+make lint          # Run flake8 linter
+```
+
+### Merging Worktree Changes
+
+After completing work in a worktree:
+
+```bash
+# 1. Verify tests pass in the worktree
+make test
+
+# 2. Commit your changes
+git add -A && git commit -m "feat: implement Phase X (TDD complete)"
+
+# 3. Go to main worktree and merge
+cd /path/to/main/CSS-HNCA
+git merge feature/phase-X-branch --no-edit
+
+# 4. Verify tests pass on main
+make test
+
+# 5. Update memory files (commits.md, tests.md, plan.md)
+```
