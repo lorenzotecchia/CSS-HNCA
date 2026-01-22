@@ -374,15 +374,119 @@ test/
 
 ---
 
-### Phase 9: Oja Rule + Advanced Plasticity
-**Modules**: `learning/oja.py`
+### Phase 9: Leaky Integrate-and-Fire (LIF) Neurons
+**Modules**: `core/neuron_state.py`, `core/simulation.py`, `config/loader.py`
+
+**Goal**: Replace binary threshold firing with membrane potential that integrates and leaks.
+
+**LIF Dynamics**:
+```
+V_i(t+1) = (1 - λ) * V_i(t) + Σ(w_ji * s_j(t)) - V_reset * fired(t)
+```
+- `λ` = leak rate (potential decays toward 0)
+- `V_reset` = amount subtracted after firing (refractory-like behavior)
+- Fires when `V_i >= threshold`
 
 - [ ] **RED**: Write failing unit tests
-  - [ ] `test/unit/test_oja.py` - weight normalization, decay behavior
+  - [ ] `test/unit/test_neuron_state.py` - add tests for membrane potential, leak dynamics
+  - [ ] `test/unit/test_lif.py` - potential accumulates, leaks, resets after firing
 - [ ] **RED**: Write failing integration tests
-  - [ ] `test/integration/test_oja_simulation.py` - Oja rule integrates with Simulation
+  - [ ] `test/integration/test_lif_simulation.py` - LIF prevents continuous firing
 - [ ] **RED**: Write failing property tests
-  - [ ] `test/property/test_oja_props.py` - weights converge, norm bounded
-- [ ] **GREEN**: Implement `learning/oja.py`
-- [ ] **GREEN**: Integrate Oja rule option into Simulation
-- [ ] **REFACTOR**: Clean up plasticity options
+  - [ ] `test/property/test_lif_props.py` - potential bounded, firing requires accumulation
+- [ ] **GREEN**: Add `membrane_potential: ndarray` to `NeuronState`
+- [ ] **GREEN**: Modify `update_firing()` to use LIF dynamics
+- [ ] **GREEN**: Add config params: `leak_rate`, `reset_potential`
+- [ ] **REFACTOR**: Ensure backward compatibility with existing tests
+
+---
+
+### Phase 10: Weight Decay Mechanisms
+**Modules**: `learning/hebbian.py`, `core/simulation.py`
+
+**Goal**: Prevent unbounded weight growth with baseline decay + Oja competitive decay.
+
+**A. Baseline Weight Decay** (uses existing `decay_alpha`):
+```
+W(t+1) = (1 - α) * W(t)
+```
+
+**B. Oja Rule (Activity-Dependent Decay)**:
+```
+W_AB(t+1) = W_AB(t) + l*(LTP) - f*(LTD) - α_oja * activity_B² * W_AB
+```
+
+- [ ] **RED**: Write failing unit tests
+  - [ ] `test/unit/test_weight_decay.py` - baseline decay reduces weights
+  - [ ] `test/unit/test_oja.py` - Oja decay proportional to activity²
+- [ ] **RED**: Write failing integration tests
+  - [ ] `test/integration/test_decay_simulation.py` - weights stabilize, don't grow unboundedly
+- [ ] **RED**: Write failing property tests
+  - [ ] `test/property/test_weight_decay_props.py` - long-run weight distribution bounded
+- [ ] **GREEN**: Add baseline decay step in simulation
+- [ ] **GREEN**: Add Oja decay term to `HebbianLearner.apply()`
+- [ ] **GREEN**: Add `oja_alpha` config parameter
+- [ ] **REFACTOR**: Clean up decay logic
+
+---
+
+### Phase 11: Avalanche Detection & SOC Metrics
+**Modules**: `events/avalanche.py` (new)
+
+**Goal**: Detect avalanches and compute SOC metrics (power-law distributions, branching ratio).
+
+**Avalanche Definition**:
+1. Quiet state: firing count < `quiet_threshold` (e.g., 5% of neurons)
+2. Avalanche starts: firing rises above quiet threshold
+3. Track size: sum of firing events during avalanche
+4. Avalanche ends: firing returns below quiet threshold
+5. Record: size, duration, peak activity
+
+**SOC Metrics**:
+- Avalanche size distribution → power law slope ≈ -1.5
+- Avalanche duration distribution → power law
+- Branching ratio: avg(firing_t+1 / firing_t) → ≈ 1.0 at criticality
+
+- [ ] **RED**: Write failing unit tests
+  - [ ] `test/unit/test_avalanche.py` - detection logic, size/duration tracking
+- [ ] **RED**: Write failing integration tests
+  - [ ] `test/integration/test_avalanche_events.py` - AvalancheDetector subscribes to events
+- [ ] **RED**: Write failing property tests
+  - [ ] `test/property/test_avalanche_props.py` - all activity during avalanche is counted
+- [ ] **GREEN**: Implement `events/avalanche.py` - AvalancheDetector class
+- [ ] **GREEN**: Add `avalanche_quiet_threshold` config parameter
+- [ ] **GREEN**: Output avalanche statistics (size histogram, branching ratio)
+- [ ] **REFACTOR**: Integrate with existing visualization/recorder
+
+---
+
+### Phase 12: SOC Parameter Tuning & Validation
+**Goal**: Find parameter values that produce critical dynamics.
+
+**Experiments**:
+- [ ] Run parameter sweeps: leak_rate, reset_potential, decay_alpha, oja_alpha
+- [ ] Measure avalanche size distribution slope (target: -1.5)
+- [ ] Measure branching ratio (target: 1.0)
+- [ ] Verify homeostasis: stable average activity over long runs
+
+**Expected Behavior After All Phases**:
+1. **Early simulation**: Random initial firing triggers small cascades
+2. **Learning phase**: Weights self-organize, some pathways strengthen
+3. **Critical regime**: Variable firing (not saturated), power-law avalanches
+4. **Homeostasis**: Average activity stabilizes
+
+---
+
+## Open Questions (SOC Design)
+
+- [ ] What leak_rate and reset_potential values produce critical dynamics?
+- [ ] Should we add external input/stimulation to trigger avalanches?
+- [ ] Do we need inhibitory neurons for full SOC (currently all excitatory)?
+
+---
+
+## References
+
+- css-theory.md: Hebbian rules, Oja rule, saturation constraints
+- Beggs & Plenz (2003): Neuronal avalanches in neocortex
+- Oja (1982): Simplified neuron model with normalization
