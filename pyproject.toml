@@ -1,7 +1,24 @@
 [project]
 name = "css-hnca"
 version = "0.1.0"
-description = "Add your description here"
+description = "Neural Cellular Automata with Hebbian Learning and STDP"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "numpy>=1.26.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "hypothesis>=6.100.0",
+]
+gpu = [
+    "jax[cuda12]>=0.4.25",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = "test_*.py"
+python_functions = "test_*"
+addopts = "-v"

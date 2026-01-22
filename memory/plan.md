@@ -1,6 +1,6 @@
 # Neural Cellular Automata - Architecture Design
 **Date**: 2026-01-21  
-**Status**: Draft
+**Status**: Approved (2026-01-22)
 
 ## Problem Statement
 Build a neural cellular automata simulating 300+ neurons with Hebbian learning and STDP. Must work on consumer devices (NumPy) and HPC with GPU acceleration (JAX).
@@ -39,8 +39,8 @@ src/
 @dataclass
 class Network:
     positions: ndarray       # Shape: (N, 3) - 3D coordinates
-    link_matrix: ndarray     # Shape: (N, N) - structural connectivity (bool)
-    weight_matrix: ndarray   # Shape: (N, N) - synaptic strengths
+    link_matrix: ndarray     # Shape: (N, N) - directed connectivity (bool, asymmetric)
+    weight_matrix: ndarray   # Shape: (N, N) - synaptic strengths (directed)
     n_neurons: int
     radius: float
     box_size: tuple[float, float, float]
@@ -133,6 +133,7 @@ class NetworkConfig:
     initial_weight: float
     weight_min: float
     weight_max: float
+    initial_firing_fraction: float  # Fraction of neurons firing at t=0
 
 @dataclass(frozen=True)  
 class LearningConfig:
@@ -168,6 +169,7 @@ radius = 2.5
 initial_weight = 0.1
 weight_min = 0.0
 weight_max = 1.0
+initial_firing_fraction = 0.1  # 10% of neurons fire at t=0
 
 [learning]
 threshold = 0.5
@@ -228,7 +230,9 @@ python main.py -v                        # Verbose TUI output
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Dimensionality | 3D volume | Biologically realistic |
-| Connectivity | Directed, all within radius | Dense skeleton, prune via weights |
+| Connectivity | **Directed (asymmetric)**, all within radius | A→B can exist without B→A; matches STDP semantics |
+| Initial firing | **Random fraction** | Configurable `initial_firing_fraction` in config |
+| Weight initialization | **Uniform constant** | All weights start at `initial_weight` value |
 | Backend | NumPy default, JAX optional | Portable: consumer → HPC |
 | Events | Typed event bus | Decouples core from viz |
 | Config | TOML → dataclass | Type-safe, human-readable |

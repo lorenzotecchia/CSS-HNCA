@@ -1,0 +1,257 @@
+"""Unit tests for NeuronState data structure.
+
+RED phase: These tests should fail until NeuronState is implemented.
+"""
+
+import numpy as np
+import pytest
+
+from src.core.neuron_state import NeuronState
+
+
+class TestNeuronStateCreation:
+    """Tests for NeuronState.create factory method."""
+
+    def test_create_returns_neuron_state(self):
+        """create should return a NeuronState instance."""
+        state = NeuronState.create(
+            n_neurons=10,
+            threshold=0.5,
+            initial_firing_fraction=0.1,
+            seed=42,
+        )
+        assert isinstance(state, NeuronState)
+
+    def test_threshold_stored_correctly(self):
+        """NeuronState should store the threshold value."""
+        state = NeuronState.create(
+            n_neurons=10,
+            threshold=0.75,
+            initial_firing_fraction=0.1,
+            seed=42,
+        )
+        assert state.threshold == 0.75
+
+
+class TestNeuronStateFiringArrays:
+    """Tests for firing state arrays."""
+
+    def test_firing_shape(self):
+        """Firing array should have shape (N,) for N neurons."""
+        state = NeuronState.create(
+            n_neurons=25,
+            threshold=0.5,
+            initial_firing_fraction=0.1,
+            seed=42,
+        )
+        assert state.firing.shape == (25,)
+
+    def test_firing_dtype_bool(self):
+        """Firing array should be boolean."""
+        state = NeuronState.create(
+            n_neurons=10,
+            threshold=0.5,
+            initial_firing_fraction=0.1,
+            seed=42,
+        )
+        assert state.firing.dtype == np.bool_
+
+    def test_firing_prev_shape(self):
+        """Previous firing array should have shape (N,)."""
+        state = NeuronState.create(
+            n_neurons=25,
+            threshold=0.5,
+            initial_firing_fraction=0.1,
+            seed=42,
+        )
+        assert state.firing_prev.shape == (25,)
+
+    def test_firing_prev_dtype_bool(self):
+        """Previous firing array should be boolean."""
+        state = NeuronState.create(
+            n_neurons=10,
+            threshold=0.5,
+            initial_firing_fraction=0.1,
+            seed=42,
+        )
+        assert state.firing_prev.dtype == np.bool_
+
+
+class TestNeuronStateInitialFiring:
+    """Tests for initial firing state with random fraction."""
+
+    def test_initial_firing_fraction_zero(self):
+        """With fraction=0, no neurons should fire initially."""
+        state = NeuronState.create(
+            n_neurons=100,
+            threshold=0.5,
+            initial_firing_fraction=0.0,
+            seed=42,
+        )
+        assert not np.any(state.firing)
+
+    def test_initial_firing_fraction_one(self):
+        """With fraction=1, all neurons should fire initially."""
+        state = NeuronState.create(
+            n_neurons=100,
+            threshold=0.5,
+            initial_firing_fraction=1.0,
+            seed=42,
+        )
+        assert np.all(state.firing)
+
+    def test_initial_firing_fraction_approximate(self):
+        """With fraction=0.3, approximately 30% should fire (within tolerance)."""
+        state = NeuronState.create(
+            n_neurons=1000,
+            threshold=0.5,
+            initial_firing_fraction=0.3,
+            seed=42,
+        )
+        actual_fraction = np.sum(state.firing) / 1000
+        # Allow 5% tolerance for random variation
+        assert 0.25 <= actual_fraction <= 0.35
+
+    def test_firing_prev_initially_false(self):
+        """Previous firing state should start all False."""
+        state = NeuronState.create(
+            n_neurons=50,
+            threshold=0.5,
+            initial_firing_fraction=0.5,
+            seed=42,
+        )
+        assert not np.any(state.firing_prev)
+
+
+class TestNeuronStateThresholdValidation:
+    """Tests for threshold parameter validation."""
+
+    def test_threshold_positive(self):
+        """Threshold must be positive."""
+        with pytest.raises(ValueError):
+            NeuronState.create(
+                n_neurons=10,
+                threshold=-0.1,
+                initial_firing_fraction=0.1,
+                seed=42,
+            )
+
+    def test_threshold_zero_allowed(self):
+        """Threshold of zero should be allowed (edge case)."""
+        state = NeuronState.create(
+            n_neurons=10,
+            threshold=0.0,
+            initial_firing_fraction=0.1,
+            seed=42,
+        )
+        assert state.threshold == 0.0
+
+
+class TestNeuronStateFiringFractionValidation:
+    """Tests for initial_firing_fraction validation."""
+
+    def test_firing_fraction_negative_invalid(self):
+        """Firing fraction must be >= 0."""
+        with pytest.raises(ValueError):
+            NeuronState.create(
+                n_neurons=10,
+                threshold=0.5,
+                initial_firing_fraction=-0.1,
+                seed=42,
+            )
+
+    def test_firing_fraction_above_one_invalid(self):
+        """Firing fraction must be <= 1."""
+        with pytest.raises(ValueError):
+            NeuronState.create(
+                n_neurons=10,
+                threshold=0.5,
+                initial_firing_fraction=1.5,
+                seed=42,
+            )
+
+
+class TestNeuronStateReproducibility:
+    """Tests for deterministic behavior with seeds."""
+
+    def test_same_seed_same_initial_firing(self):
+        """Same seed should produce identical initial firing pattern."""
+        state1 = NeuronState.create(
+            n_neurons=100,
+            threshold=0.5,
+            initial_firing_fraction=0.3,
+            seed=12345,
+        )
+        state2 = NeuronState.create(
+            n_neurons=100,
+            threshold=0.5,
+            initial_firing_fraction=0.3,
+            seed=12345,
+        )
+        assert np.array_equal(state1.firing, state2.firing)
+
+    def test_different_seed_different_initial_firing(self):
+        """Different seeds should produce different firing patterns."""
+        state1 = NeuronState.create(
+            n_neurons=100,
+            threshold=0.5,
+            initial_firing_fraction=0.5,
+            seed=111,
+        )
+        state2 = NeuronState.create(
+            n_neurons=100,
+            threshold=0.5,
+            initial_firing_fraction=0.5,
+            seed=222,
+        )
+        # With 50% firing, it's extremely unlikely to be identical
+        assert not np.array_equal(state1.firing, state2.firing)
+
+
+class TestNeuronStateUpdate:
+    """Tests for update_firing method."""
+
+    def test_update_firing_modifies_state(self):
+        """update_firing should modify the firing state based on input."""
+        state = NeuronState.create(
+            n_neurons=5,
+            threshold=0.5,
+            initial_firing_fraction=0.0,
+            seed=42,
+        )
+        # Input signal exceeds threshold for neurons 0 and 2
+        input_signal = np.array([0.6, 0.3, 0.8, 0.1, 0.4])
+        state.update_firing(input_signal)
+        expected = np.array([True, False, True, False, False])
+        assert np.array_equal(state.firing, expected)
+
+    def test_update_firing_preserves_previous(self):
+        """update_firing should copy current to previous before update."""
+        state = NeuronState.create(
+            n_neurons=3,
+            threshold=0.5,
+            initial_firing_fraction=0.0,
+            seed=42,
+        )
+        # First update
+        state.update_firing(np.array([0.6, 0.3, 0.8]))
+        first_firing = state.firing.copy()
+
+        # Second update
+        state.update_firing(np.array([0.2, 0.7, 0.1]))
+
+        # Previous should match first firing pattern
+        assert np.array_equal(state.firing_prev, first_firing)
+
+    def test_update_firing_threshold_boundary(self):
+        """Exactly at threshold should fire (>= threshold)."""
+        state = NeuronState.create(
+            n_neurons=3,
+            threshold=0.5,
+            initial_firing_fraction=0.0,
+            seed=42,
+        )
+        input_signal = np.array([0.5, 0.499999, 0.500001])
+        state.update_firing(input_signal)
+        expected = np.array([True, False, True])
+        assert np.array_equal(state.firing, expected)
