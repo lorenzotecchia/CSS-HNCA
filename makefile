@@ -22,7 +22,7 @@ NCPUS ?= $(shell $(PYTHON) -c "import os; print(os.cpu_count() or 1)")
 MAIN := main.py
 
 # Config file for simulation (override: make run CONFIG=config/sweep1.yaml)
-CONFIG ?= $(CONFIG_DIR)/default.yaml
+CONFIG ?= $(CONFIG_DIR)/default.toml
 
 # =============================================================================
 # Parameter Sweep Configuration

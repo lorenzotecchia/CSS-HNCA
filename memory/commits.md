@@ -1,0 +1,32 @@
+# Commit History
+
+**Last Updated**: 2026-01-22
+
+## Recent Commits (Newest First)
+
+| Hash | Message | Phase |
+|------|---------|-------|
+| `6e2fd20` | feat: implement Phase 2 config loader and CLI (TDD complete) | Phase 2 |
+| `f27005a` | feat: implement Phase 5 Hebbian learning with STDP (TDD complete) | Phase 5 |
+| `f4733ec` | feat: implement Phase 1 core skeleton (TDD complete) | Phase 1 |
+| `b9286cb` | Document Network Generation Algorithm in css-theory.md | Docs |
+| `3e4957c` | rules fixes, math formalism | Docs |
+| `cb7586f` | mathematical formalism for the change state algorithm | Docs |
+| `bc23665` | feat: account for strict tdd in planning | Planning |
+| `b9bcd51` | docs: add architecture design for neural cellular automata | Planning |
+| `35c257d` | feat: added skeleton for theory | Docs |
+| `7026991` | chore: updated the readme | Setup |
+| `d725f42` | feat: added makefile to enhance development | Setup |
+| `f940b8b` | Initial commit | Setup |
+
+## Phase Completion Summary
+
+- **Phase 1 (Core Skeleton)**: COMPLETE - `f4733ec`
+- **Phase 2 (Config Loader & CLI)**: COMPLETE - `6e2fd20`
+- **Phase 3 (Event Bus)**: NOT STARTED
+- **Phase 4 (Pygame Visualization)**: NOT STARTED
+- **Phase 5 (Hebbian Learning + STDP)**: COMPLETE - `f27005a`
+- **Phase 6 (Matplotlib Analytics)**: NOT STARTED
+- **Phase 7 (TUI Logger + Output Recorder)**: NOT STARTED
+- **Phase 8 (Backend Abstraction/JAX)**: NOT STARTED
+- **Phase 9 (Oja Rule + Advanced Plasticity)**: NOT STARTED

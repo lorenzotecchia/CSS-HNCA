@@ -258,37 +258,37 @@ test/
 
 ---
 
-### Phase 1: Core Skeleton
+### Phase 1: Core Skeleton ✅ COMPLETE
 **Modules**: `core/network.py`, `core/neuron_state.py`, `core/simulation.py`
 
-- [ ] **RED**: Write failing unit tests
-  - [ ] `test/unit/test_network.py` - positions in bounds, link matrix shape, weight initialization
-  - [ ] `test/unit/test_neuron_state.py` - firing array shape, threshold validation
-  - [ ] `test/unit/test_simulation.py` - state enum transitions, step increment
-- [ ] **RED**: Write failing integration tests
-  - [ ] `test/integration/test_simulation_core.py` - Simulation uses Network + NeuronState correctly
-- [ ] **RED**: Write failing property tests
-  - [ ] `test/property/test_network_props.py` - positions always in bounds, link matrix matches distance
-  - [ ] `test/property/test_simulation_props.py` - step count always increases
-- [ ] **GREEN**: Implement `core/network.py`
-- [ ] **GREEN**: Implement `core/neuron_state.py`
-- [ ] **GREEN**: Implement `core/simulation.py`
-- [ ] **REFACTOR**: Clean up core module
+- [x] **RED**: Write failing unit tests
+  - [x] `test/unit/test_network.py` - positions in bounds, link matrix shape, weight initialization
+  - [x] `test/unit/test_neuron_state.py` - firing array shape, threshold validation
+  - [x] `test/unit/test_simulation.py` - state enum transitions, step increment
+- [x] **RED**: Write failing integration tests
+  - [x] `test/integration/test_simulation_core.py` - Simulation uses Network + NeuronState correctly
+- [x] **RED**: Write failing property tests
+  - [x] `test/property/test_network_props.py` - positions always in bounds, link matrix matches distance
+  - [x] `test/property/test_simulation_props.py` - step count always increases
+- [x] **GREEN**: Implement `core/network.py`
+- [x] **GREEN**: Implement `core/neuron_state.py`
+- [x] **GREEN**: Implement `core/simulation.py`
+- [x] **REFACTOR**: Clean up core module
 
 ---
 
-### Phase 2: Config Loader and CLI
+### Phase 2: Config Loader and CLI ✅ COMPLETE
 **Modules**: `config/loader.py`, `main.py` CLI
 
-- [ ] **RED**: Write failing unit tests
-  - [ ] `test/unit/test_config_loader.py` - TOML parsing, validation errors, defaults
-- [ ] **RED**: Write failing integration tests
-  - [ ] `test/integration/test_cli.py` - CLI loads config and creates Simulation
-- [ ] **RED**: Write failing property tests
-  - [ ] `test/property/test_config_props.py` - any valid config produces valid Simulation
-- [ ] **GREEN**: Implement `config/loader.py`
-- [ ] **GREEN**: Implement CLI in `main.py`
-- [ ] **REFACTOR**: Clean up config module
+- [x] **RED**: Write failing unit tests
+  - [x] `test/unit/test_config_loader.py` - TOML parsing, validation errors, defaults
+- [x] **RED**: Write failing integration tests
+  - [x] `test/integration/test_cli.py` - CLI loads config and creates Simulation
+- [x] **RED**: Write failing property tests
+  - [x] `test/property/test_config_props.py` - any valid config produces valid Simulation
+- [x] **GREEN**: Implement `config/loader.py`
+- [x] **GREEN**: Implement CLI in `main.py`
+- [x] **REFACTOR**: Clean up config module
 
 ---
 
@@ -317,18 +317,18 @@ test/
 
 ---
 
-### Phase 5: Hebbian Learning + STDP
+### Phase 5: Hebbian Learning + STDP ✅ COMPLETE
 **Modules**: `learning/hebbian.py`
 
-- [ ] **RED**: Write failing unit tests
-  - [ ] `test/unit/test_hebbian.py` - LTP increases weights, LTD decreases, bounds respected
-- [ ] **RED**: Write failing integration tests
-  - [ ] `test/integration/test_learning_simulation.py` - Simulation applies learning each step
-- [ ] **RED**: Write failing property tests
-  - [ ] `test/property/test_hebbian_props.py` - weights always in [min, max], STDP timing effects
-- [ ] **GREEN**: Implement `learning/hebbian.py`
-- [ ] **GREEN**: Integrate learning into `core/simulation.py`
-- [ ] **REFACTOR**: Clean up learning module
+- [x] **RED**: Write failing unit tests
+  - [x] `test/unit/test_hebbian.py` - LTP increases weights, LTD decreases, bounds respected
+- [x] **RED**: Write failing integration tests
+  - [x] `test/integration/test_learning_simulation.py` - Simulation applies learning each step
+- [x] **RED**: Write failing property tests
+  - [x] `test/property/test_hebbian_props.py` - weights always in [min, max], STDP timing effects
+- [x] **GREEN**: Implement `learning/hebbian.py`
+- [x] **GREEN**: Integrate learning into `core/simulation.py`
+- [x] **REFACTOR**: Clean up learning module
 
 ---
 
