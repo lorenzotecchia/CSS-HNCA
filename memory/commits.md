@@ -30,3 +30,7 @@
 - **Phase 7 (TUI Logger + Output Recorder)**: NOT STARTED
 - **Phase 8 (Backend Abstraction/JAX)**: NOT STARTED
 - **Phase 9 (Oja Rule + Advanced Plasticity)**: NOT STARTED
+
+## [2026-01-22] 9cd4317
+**Message:** fix: wire HebbianLearner in main.py CLI
+**Changes:** Import HebbianLearner and instantiate it with config values in `create_simulation_from_config()`, then pass to Simulation constructor. Previously learning was never applied because learner was None.
