@@ -40,6 +40,10 @@
 **Message:** feat(phase7): TUI Logger + Output Recorder
 **Changes:** Implemented TUILogger for terminal output and Recorder for CSV/NPZ persistence. 35 new tests (unit, integration, property). 197 total tests passing.
 
+## [2026-01-22] 2efca72
+**Message:** fix: pass LIF and decay params from config to simulation
+**Changes:** Fixed saturation bug - main.py was not passing leak_rate, reset_potential, decay_alpha, oja_alpha to simulation components. Added membrane potential initialization for initially firing neurons. Updated test for realistic dynamics. 261 tests passing.
+
 ## [2026-01-22] 2574349
 **Message:** feat(phase6): Matplotlib Analytics visualization
 **Changes:** MatplotlibAnalyticsView with firing/weight line plots, histogram, and optional heatmap. Demo script included.
