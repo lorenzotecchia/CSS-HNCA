@@ -4,19 +4,19 @@ seed = 42
 n_neurons = 300
 box_size = [10.0, 10.0, 10.0]
 radius = 2.5
-initial_weight = 0.1
+initial_weight = 0.06
 weight_min = 0.0
-weight_max = 1.0
-initial_firing_fraction = 0.1  # 10% of neurons fire at t=0
-leak_rate = 0.1                # LIF: potential decay rate per timestep
-reset_potential = 1.0          # LIF: amount subtracted after firing
+weight_max = 0.3
+initial_firing_fraction = 0.15  # 15% of neurons fire at t=0
+leak_rate = 0.08               # LIF: slower leak to sustain activity
+reset_potential = 0.4          # LIF: partial reset after firing
 
 [learning]
-threshold = 0.5
-learning_rate = 0.01
-forgetting_rate = 0.005
-decay_alpha = 0.001              # Baseline weight decay rate
-oja_alpha = 0.001                # Oja rule decay coefficient
+threshold = 0.4                  # Lower threshold for easier activation
+learning_rate = 0.004
+forgetting_rate = 0.004          # LTD = LTP for balance
+decay_alpha = 0.0005             # Weak baseline decay
+oja_alpha = 0.002                # Moderate Oja normalization
 
 [visualization]
 pygame_enabled = true

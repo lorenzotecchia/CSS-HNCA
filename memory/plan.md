@@ -465,6 +465,29 @@ W_AB(t+1) = W_AB(t) + l*(LTP) - f*(LTD) - α_oja * activity_B² * W_AB
 
 ---
 
+## Bug Fixes Log
+
+### [2026-01-22] Saturation Bug Fix
+
+**Problem**: Network saturated at 300/300 neurons firing permanently.
+
+**Root Cause**: `main.py` was not passing LIF and decay parameters to simulation:
+- `leak_rate` and `reset_potential` → defaulted to 0 (no LIF dynamics)
+- `decay_alpha` and `oja_alpha` → defaulted to 0 (no weight decay)
+
+**Solution**:
+1. **main.py**: Pass all config parameters to `NeuronState.create()` and `HebbianLearner()`
+2. **neuron_state.py**: Initialize membrane potential at threshold for initially firing neurons
+3. **config/default.toml**: Tuned for balanced dynamics (not saturating, not dying instantly)
+
+**Parameter Tuning Insights**:
+- `threshold` must be > `avg_connections * initial_weight` to prevent saturation
+- `forgetting_rate >= learning_rate` provides stability (LTD >= LTP)
+- `leak_rate` ~0.1 with `reset_potential` ~0.4-0.5 gives natural transients
+- Without external input, activity eventually dies (expected for recurrent network)
+
+---
+
 ## Open Questions (SOC Design)
 
 - [ ] What leak_rate and reset_potential values produce critical dynamics?

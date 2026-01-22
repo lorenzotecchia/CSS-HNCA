@@ -75,8 +75,10 @@ class NeuronState:
         # Previous state starts all False
         firing_prev = np.zeros(n_neurons, dtype=np.bool_)
 
-        # Membrane potential starts at zero
+        # Membrane potential: set to threshold for initially firing neurons
+        # This ensures they can contribute input before the first update
         membrane_potential = np.zeros(n_neurons, dtype=np.float64)
+        membrane_potential[firing] = threshold
 
         return cls(
             firing=firing,

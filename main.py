@@ -101,6 +101,8 @@ def create_simulation_from_config(config_path: Path) -> Simulation:
         threshold=config.learning.threshold,
         initial_firing_fraction=config.network.initial_firing_fraction,
         seed=config.seed,
+        leak_rate=config.network.leak_rate,
+        reset_potential=config.network.reset_potential,
     )
 
     learner = HebbianLearner(
@@ -108,6 +110,8 @@ def create_simulation_from_config(config_path: Path) -> Simulation:
         forgetting_rate=config.learning.forgetting_rate,
         weight_min=config.network.weight_min,
         weight_max=config.network.weight_max,
+        decay_alpha=config.learning.decay_alpha,
+        oja_alpha=config.learning.oja_alpha,
     )
 
     return Simulation(
