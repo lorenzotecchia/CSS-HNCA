@@ -34,3 +34,7 @@
 ## [2026-01-22] 9cd4317
 **Message:** fix: wire HebbianLearner in main.py CLI
 **Changes:** Import HebbianLearner and instantiate it with config values in `create_simulation_from_config()`, then pass to Simulation constructor. Previously learning was never applied because learner was None.
+
+## [2026-01-22] e843616
+**Message:** feat(phase7): TUI Logger + Output Recorder
+**Changes:** Implemented TUILogger for terminal output and Recorder for CSV/NPZ persistence. 35 new tests (unit, integration, property). 197 total tests passing.
