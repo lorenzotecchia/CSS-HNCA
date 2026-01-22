@@ -15,6 +15,7 @@ from src.core.network import Network
 from src.core.neuron_state import NeuronState
 
 if TYPE_CHECKING:
+    from src.events.bus import EventBus
     from src.learning.hebbian import HebbianLearner
 
 
@@ -44,6 +45,7 @@ class Simulation:
     learning_rate: float
     forgetting_rate: float
     learner: HebbianLearner | None = None
+    event_bus: EventBus | None = None
     time_step: int = field(default=0, init=False)
     sim_state: SimulationState = field(default=SimulationState.STOPPED, init=False)
 
@@ -97,6 +99,18 @@ class Simulation:
         # Increment time
         self.time_step += 1
 
+        # Emit step event
+        if self.event_bus is not None:
+            from src.events.bus import StepEvent
+
+            self.event_bus.emit(
+                StepEvent(
+                    time_step=self.time_step,
+                    firing_count=self.firing_count,
+                    avg_weight=self.average_weight,
+                )
+            )
+
     def reset(self, seed: int | None = None) -> None:
         """Reset simulation to initial state.
 
@@ -129,6 +143,12 @@ class Simulation:
             )
             self.state.firing[:] = new_state.firing
             self.state.firing_prev[:] = new_state.firing_prev
+
+        # Emit reset event
+        if self.event_bus is not None:
+            from src.events.bus import ResetEvent
+
+            self.event_bus.emit(ResetEvent(seed=seed))
 
     def start(self) -> None:
         """Start or resume simulation."""
