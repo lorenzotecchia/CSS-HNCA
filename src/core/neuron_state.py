@@ -17,11 +17,17 @@ class NeuronState:
         firing: Shape (N,) - current firing state (bool)
         firing_prev: Shape (N,) - previous time step firing state (bool)
         threshold: Firing threshold γ
+        membrane_potential: Shape (N,) - LIF membrane potential (float)
+        leak_rate: LIF leak rate λ (potential decays by this fraction each step)
+        reset_potential: Amount subtracted from potential after firing
     """
 
     firing: ndarray
     firing_prev: ndarray
     threshold: float
+    membrane_potential: ndarray
+    leak_rate: float
+    reset_potential: float
 
     @classmethod
     def create(
@@ -30,6 +36,8 @@ class NeuronState:
         threshold: float,
         initial_firing_fraction: float,
         seed: int | None = None,
+        leak_rate: float = 0.0,
+        reset_potential: float = 0.0,
     ) -> "NeuronState":
         """Create initial neuron state with random firing pattern.
 
@@ -38,12 +46,15 @@ class NeuronState:
             threshold: Firing threshold γ (must be >= 0)
             initial_firing_fraction: Fraction of neurons firing at t=0 (0 to 1)
             seed: Random seed for reproducibility
+            leak_rate: LIF leak rate λ in [0, 1] (potential decay fraction)
+            reset_potential: Amount subtracted from potential after firing (>= 0)
 
         Returns:
             NeuronState with random initial firing based on fraction
 
         Raises:
             ValueError: If threshold < 0 or initial_firing_fraction not in [0, 1]
+                       or leak_rate not in [0, 1] or reset_potential < 0
         """
         if threshold < 0:
             raise ValueError(f"Threshold must be >= 0, got {threshold}")
@@ -51,6 +62,10 @@ class NeuronState:
             raise ValueError(
                 f"initial_firing_fraction must be in [0, 1], got {initial_firing_fraction}"
             )
+        if not 0 <= leak_rate <= 1:
+            raise ValueError(f"leak_rate must be in [0, 1], got {leak_rate}")
+        if reset_potential < 0:
+            raise ValueError(f"reset_potential must be >= 0, got {reset_potential}")
 
         rng = np.random.default_rng(seed)
 
@@ -60,16 +75,25 @@ class NeuronState:
         # Previous state starts all False
         firing_prev = np.zeros(n_neurons, dtype=np.bool_)
 
+        # Membrane potential starts at zero
+        membrane_potential = np.zeros(n_neurons, dtype=np.float64)
+
         return cls(
             firing=firing,
             firing_prev=firing_prev,
             threshold=threshold,
+            membrane_potential=membrane_potential,
+            leak_rate=leak_rate,
+            reset_potential=reset_potential,
         )
 
     def update_firing(self, input_signal: ndarray) -> None:
-        """Update firing state based on input signal.
+        """Update firing state using Leaky Integrate-and-Fire dynamics.
 
-        Neurons fire if their input signal >= threshold.
+        LIF Model:
+            V(t+1) = (1 - λ) * V(t) + input - V_reset * fired(t)
+        
+        Neurons fire if their membrane potential >= threshold.
         Previous firing state is preserved before update.
 
         Args:
@@ -78,5 +102,18 @@ class NeuronState:
         # Preserve current state as previous
         np.copyto(self.firing_prev, self.firing)
 
-        # Update firing based on threshold comparison
-        np.copyto(self.firing, input_signal >= self.threshold)
+        # LIF dynamics:
+        # 1. Leak: decay toward zero
+        self.membrane_potential *= (1 - self.leak_rate)
+        
+        # 2. Integrate: add input signal
+        self.membrane_potential += input_signal
+        
+        # 3. Fire: check threshold
+        np.copyto(self.firing, self.membrane_potential >= self.threshold)
+        
+        # 4. Reset: subtract reset_potential for neurons that fired
+        self.membrane_potential -= self.reset_potential * self.firing.astype(float)
+        
+        # Clamp potential to non-negative (biological constraint)
+        np.maximum(self.membrane_potential, 0.0, out=self.membrane_potential)

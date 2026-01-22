@@ -8,6 +8,8 @@ initial_weight = 0.1
 weight_min = 0.0
 weight_max = 1.0
 initial_firing_fraction = 0.1  # 10% of neurons fire at t=0
+leak_rate = 0.1                # LIF: potential decay rate per timestep
+reset_potential = 1.0          # LIF: amount subtracted after firing
 
 [learning]
 threshold = 0.5

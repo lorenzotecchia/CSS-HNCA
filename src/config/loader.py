@@ -27,6 +27,8 @@ class NetworkConfig:
         weight_min: Minimum allowed weight value
         weight_max: Maximum allowed weight value
         initial_firing_fraction: Fraction of neurons firing at t=0
+        leak_rate: LIF leak rate λ (potential decay fraction per step)
+        reset_potential: Amount subtracted from potential after firing
     """
 
     n_neurons: int
@@ -36,6 +38,8 @@ class NetworkConfig:
     weight_min: float
     weight_max: float
     initial_firing_fraction: float
+    leak_rate: float
+    reset_potential: float
 
 
 @dataclass(frozen=True)
@@ -112,6 +116,14 @@ def _validate_network_config(data: dict[str, Any]) -> None:
     if len(box_size) != 3 or any(d <= 0 for d in box_size):
         raise ConfigValidationError("box_size must be 3 positive values")
 
+    leak_rate = data.get("leak_rate", 0.0)
+    if not 0 <= leak_rate <= 1:
+        raise ConfigValidationError("leak_rate must be in [0, 1]")
+
+    reset_potential = data.get("reset_potential", 0.0)
+    if reset_potential < 0:
+        raise ConfigValidationError("reset_potential must be >= 0")
+
 
 def _validate_learning_config(data: dict[str, Any]) -> None:
     """Validate learning configuration values."""
@@ -145,6 +157,8 @@ def _parse_network_config(data: dict[str, Any]) -> NetworkConfig:
         weight_min=float(data["weight_min"]),
         weight_max=float(data["weight_max"]),
         initial_firing_fraction=float(data["initial_firing_fraction"]),
+        leak_rate=float(data.get("leak_rate", 0.0)),
+        reset_potential=float(data.get("reset_potential", 0.0)),
     )
 
 

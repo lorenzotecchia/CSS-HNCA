@@ -65,6 +65,8 @@ def valid_network_config(draw, n_neurons_strategy=None):
         weight_min=weight_min,
         weight_max=weight_max,
         initial_firing_fraction=draw(valid_fraction),
+        leak_rate=draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)),
+        reset_potential=draw(st.floats(min_value=0.0, max_value=2.0, allow_nan=False, allow_infinity=False)),
     )
 
 
@@ -83,6 +85,8 @@ def small_network_config(draw):
         weight_min=weight_min,
         weight_max=weight_max,
         initial_firing_fraction=draw(valid_fraction),
+        leak_rate=draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)),
+        reset_potential=draw(st.floats(min_value=0.0, max_value=2.0, allow_nan=False, allow_infinity=False)),
     )
 
 

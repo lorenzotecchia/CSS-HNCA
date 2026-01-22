@@ -31,6 +31,8 @@ class TestNetworkConfig:
             weight_min=0.0,
             weight_max=1.0,
             initial_firing_fraction=0.1,
+            leak_rate=0.1,
+            reset_potential=1.0,
         )
         assert config.n_neurons == 300
         assert config.box_size == (10.0, 10.0, 10.0)
@@ -39,6 +41,8 @@ class TestNetworkConfig:
         assert config.weight_min == 0.0
         assert config.weight_max == 1.0
         assert config.initial_firing_fraction == 0.1
+        assert config.leak_rate == 0.1
+        assert config.reset_potential == 1.0
 
     def test_network_config_is_frozen(self):
         """NetworkConfig should be immutable (frozen)."""
@@ -50,6 +54,8 @@ class TestNetworkConfig:
             weight_min=0.0,
             weight_max=1.0,
             initial_firing_fraction=0.1,
+            leak_rate=0.1,
+            reset_potential=1.0,
         )
         with pytest.raises(AttributeError):
             config.n_neurons = 500
@@ -127,6 +133,8 @@ class TestSimulationConfig:
             weight_min=0.0,
             weight_max=1.0,
             initial_firing_fraction=0.1,
+            leak_rate=0.1,
+            reset_potential=1.0,
         )
         learning = LearningConfig(
             threshold=0.5,
@@ -162,6 +170,8 @@ class TestSimulationConfig:
             weight_min=0.0,
             weight_max=1.0,
             initial_firing_fraction=0.1,
+            leak_rate=0.1,
+            reset_potential=1.0,
         )
         learning = LearningConfig(
             threshold=0.5,
