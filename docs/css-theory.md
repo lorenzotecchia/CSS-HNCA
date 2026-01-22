@@ -48,6 +48,25 @@ s_i(t) =
 \end{cases}
 $$
 
+
+# Network Generation Algorithm
+
+This algorithm receives the number of nodes N, the average degree proportion k_prop and the beta distribution values a and b (=2 and =6) as input, and returns a matrix representation of a directed network with N nodes and k_prop*N^2 weighted directed edges. 
+
+Input checks: 
+- N >= 3
+- 2/N <= k_prop <= 1-1/N
+- a > 0 
+- b > 0
+
+1. Initialise the network by creating a circle graph where each node has one in-degree and one out-degree. Initially, the in-degree and out-degree of one node cannot be connected to the same node. (Hamiltonian cycle)
+Calculate <k> = k_prop*N.
+2. Give all nodes a random position in a 2D space, xlim(0,1), ylim(0,1). 
+3. For each node, check which other nodes are within a starting radius r (Euclidean distance) and put them in a radius neighbour list/dictionary. Create a list of all possible connections using the radius neighbour list/dict for both in-degree and out-degree. Keep in mind that there are already edges between some nodes. Ensure not to include them in this list. Increase r until len(list) ≥ round(k_prop​×N2)−N. Break when radius r>sqrt(2).
+4. Sample round(k_prop​×N2)-N edges (int value) from the list created in step 3, and add the edges to the network.
+5. Give all edges in the network a random weight (both initial and added) based on a beta-distribution with the values a and b gathered from the input. 
+6. Convert the directed network into a matrix representation and return this matrix.
+
 ## Brainstorming:
 1. Formalizing the Hebbian Rule with "Forgetting": While basic Hebbian rules are unstable and lead to infinite weight growth, the text provides two specific ways to implement your "forgetting" or decay concept.
 
