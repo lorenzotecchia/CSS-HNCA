@@ -292,18 +292,18 @@ test/
 
 ---
 
-### Phase 3: Event Bus
+### Phase 3: Event Bus ✅ COMPLETE
 **Modules**: `events/bus.py`
 
-- [ ] **RED**: Write failing unit tests
-  - [ ] `test/unit/test_event_bus.py` - subscribe, emit, multiple handlers, type filtering
-- [ ] **RED**: Write failing integration tests
-  - [ ] `test/integration/test_simulation_events.py` - Simulation emits events on step/reset
-- [ ] **RED**: Write failing property tests
-  - [ ] `test/property/test_event_bus_props.py` - all subscribed handlers receive events
-- [ ] **GREEN**: Implement `events/bus.py`
-- [ ] **GREEN**: Integrate events into `core/simulation.py`
-- [ ] **REFACTOR**: Clean up events module
+- [x] **RED**: Write failing unit tests
+  - [x] `test/unit/test_event_bus.py` - subscribe, emit, multiple handlers, type filtering
+- [x] **RED**: Write failing integration tests
+  - [x] `test/integration/test_simulation_events.py` - Simulation emits events on step/reset
+- [x] **RED**: Write failing property tests
+  - [x] `test/property/test_event_bus_props.py` - all subscribed handlers receive events
+- [x] **GREEN**: Implement `events/bus.py`
+- [x] **GREEN**: Integrate events into `core/simulation.py`
+- [x] **REFACTOR**: Clean up events module
 
 ---
 
