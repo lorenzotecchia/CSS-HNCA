@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 from numpy import ndarray
 
+from src.core.backend import ArrayBackend, get_backend
+
 
 @dataclass
 class NeuronState:
@@ -38,6 +40,7 @@ class NeuronState:
         seed: int | None = None,
         leak_rate: float = 0.0,
         reset_potential: float = 0.0,
+        backend: ArrayBackend | None = None,
     ) -> "NeuronState":
         """Create initial neuron state with random firing pattern.
 
@@ -48,6 +51,7 @@ class NeuronState:
             seed: Random seed for reproducibility
             leak_rate: LIF leak rate λ in [0, 1] (potential decay fraction)
             reset_potential: Amount subtracted from potential after firing (>= 0)
+            backend: Array backend for computation (default: NumPy)
 
         Returns:
             NeuronState with random initial firing based on fraction
@@ -67,24 +71,27 @@ class NeuronState:
         if reset_potential < 0:
             raise ValueError(f"reset_potential must be >= 0, got {reset_potential}")
 
-        rng = np.random.default_rng(seed)
+        if backend is None:
+            backend = get_backend()
 
         # Create initial firing state based on fraction
-        firing = rng.random(n_neurons) < initial_firing_fraction
+        firing = backend.random_bool(initial_firing_fraction, (n_neurons,), seed)
 
         # Previous state starts all False
-        firing_prev = np.zeros(n_neurons, dtype=np.bool_)
+        firing_prev = backend.zeros((n_neurons,), dtype=np.bool_)
 
         # Membrane potential: set to threshold for initially firing neurons
         # This ensures they can contribute input before the first update
-        membrane_potential = np.zeros(n_neurons, dtype=np.float64)
-        membrane_potential[firing] = threshold
+        # Use where() instead of in-place assignment for JAX compatibility
+        zeros = backend.zeros((n_neurons,), dtype=np.float64)
+        threshold_arr = zeros + threshold
+        membrane_potential = backend.where(firing, threshold_arr, zeros)
 
         return cls(
-            firing=firing,
-            firing_prev=firing_prev,
+            firing=backend.to_numpy(firing),
+            firing_prev=backend.to_numpy(firing_prev),
             threshold=threshold,
-            membrane_potential=membrane_potential,
+            membrane_potential=backend.to_numpy(membrane_potential),
             leak_rate=leak_rate,
             reset_potential=reset_potential,
         )
