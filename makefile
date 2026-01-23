@@ -152,7 +152,7 @@ test-slow:  ## Run slow tests (marked with @pytest.mark.slow)
 
 .PHONY: test-all
 test-all:  ## Run all tests including slow ones
-	$(PYTHON) -m pytest $(TEST_DIR)/ -v --run-slow
+	$(PYTHON) -m pytest $(TEST_DIR)/ -v -q
 
 # =============================================================================
 # Simulation Execution

@@ -4,7 +4,12 @@
 Run with: python scripts/demo_matplotlib.py
 """
 
+import sys
 import time
+from pathlib import Path
+
+# Add project root to path for imports
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config.loader import load_config
 from src.core.network import Network
@@ -17,7 +22,7 @@ from src.visualization.matplotlib_view import MatplotlibAnalyticsView
 def main() -> None:
     """Run demo visualization."""
     # Load config
-    config = load_config()
+    config = load_config(Path("config/default.toml"))
 
     # Create simulation
     network = Network.create_random(
@@ -32,12 +37,16 @@ def main() -> None:
         threshold=config.learning.threshold,
         initial_firing_fraction=config.network.initial_firing_fraction,
         seed=config.seed,
+        leak_rate=config.network.leak_rate,
+        reset_potential=config.network.reset_potential,
     )
     learner = HebbianLearner(
         learning_rate=config.learning.learning_rate,
         forgetting_rate=config.learning.forgetting_rate,
         weight_min=config.network.weight_min,
         weight_max=config.network.weight_max,
+        decay_alpha=config.learning.decay_alpha,
+        oja_alpha=config.learning.oja_alpha,
     )
     simulation = Simulation(
         network=network,

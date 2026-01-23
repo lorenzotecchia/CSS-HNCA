@@ -55,7 +55,8 @@ class AvalancheDetector:
     _current_peak: int = field(default=0, init=False, repr=False)
     _current_start: int = field(default=0, init=False, repr=False)
 
-    # For branching ratio calculation
+    # For branching ratio calculation (accumulated across all avalanches)
+    _all_ratios: list[float] = field(default_factory=list, init=False, repr=False)
     _firing_history: list[int] = field(default_factory=list, init=False, repr=False)
 
     def __post_init__(self) -> None:
@@ -107,10 +108,17 @@ class AvalancheDetector:
             start_time=self._current_start,
         )
         self.avalanches.append(avalanche)
+
+        # Accumulate branching ratios from this avalanche
+        for i in range(len(self._firing_history) - 1):
+            if self._firing_history[i] > 0:
+                self._all_ratios.append(self._firing_history[i + 1] / self._firing_history[i])
+
         self._in_avalanche = False
         self._current_size = 0
         self._current_duration = 0
         self._current_peak = 0
+        self._firing_history = []
 
     def finalize(self) -> None:
         """Close any ongoing avalanche at end of simulation."""
@@ -118,7 +126,7 @@ class AvalancheDetector:
             self._close_avalanche()
 
     def compute_branching_ratio(self) -> float:
-        """Compute average branching ratio during avalanches.
+        """Compute average branching ratio across all avalanches.
 
         Branching ratio = avg(firing_t+1 / firing_t)
         A ratio of ~1.0 indicates critical dynamics.
@@ -126,18 +134,14 @@ class AvalancheDetector:
         Returns:
             Average branching ratio, or 0.0 if no data
         """
-        if not self.avalanches and not self._in_avalanche:
-            return 0.0
+        # Start with accumulated ratios from completed avalanches
+        ratios = self._all_ratios.copy()
 
-        # Collect all consecutive firing ratios from avalanches
-        ratios = []
-        
-        # Use the most recent firing history if in avalanche
-        history = self._firing_history if self._firing_history else []
-        
-        for i in range(len(history) - 1):
-            if history[i] > 0:
-                ratios.append(history[i + 1] / history[i])
+        # Add ratios from current avalanche if in progress
+        if self._in_avalanche:
+            for i in range(len(self._firing_history) - 1):
+                if self._firing_history[i] > 0:
+                    ratios.append(self._firing_history[i + 1] / self._firing_history[i])
 
         if not ratios:
             return 0.0
