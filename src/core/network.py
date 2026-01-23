@@ -8,6 +8,8 @@ from dataclasses import dataclass
 import numpy as np
 from numpy import ndarray
 
+from src.core.backend import ArrayBackend, get_backend
+
 
 @dataclass
 class Network:
@@ -37,6 +39,7 @@ class Network:
         radius: float,
         initial_weight: float,
         seed: int | None = None,
+        backend: ArrayBackend | None = None,
     ) -> "Network":
         """Create a network with random neuron positions.
 
@@ -46,27 +49,34 @@ class Network:
             radius: Maximum distance for structural connectivity
             initial_weight: Initial synaptic weight for connected neurons
             seed: Random seed for reproducibility
+            backend: Array computation backend (defaults to NumPyBackend)
 
         Returns:
             Network with randomly positioned neurons and distance-based connectivity
         """
-        rng = np.random.default_rng(seed)
+        if backend is None:
+            backend = get_backend()
 
         # Generate random 3D positions within box bounds
-        positions = np.zeros((n_neurons, 3), dtype=np.float64)
-        positions[:, 0] = rng.uniform(0, box_size[0], n_neurons)
-        positions[:, 1] = rng.uniform(0, box_size[1], n_neurons)
-        positions[:, 2] = rng.uniform(0, box_size[2], n_neurons)
+        # Derive different seeds for each dimension to maintain independence
+        if seed is not None:
+            seed_x, seed_y, seed_z = seed, seed + 1, seed + 2
+        else:
+            seed_x = seed_y = seed_z = None
 
-        # Compute pairwise distances
-        # Using broadcasting: diff[i,j,k] = positions[i,k] - positions[j,k]
+        x_pos = backend.random_uniform(0, box_size[0], (n_neurons,), seed_x)
+        y_pos = backend.random_uniform(0, box_size[1], (n_neurons,), seed_y)
+        z_pos = backend.random_uniform(0, box_size[2], (n_neurons,), seed_z)
+
+        # Stack into (N, 3) array - use numpy stack since result needs to be numpy for dataclass
+        positions = np.column_stack([backend.to_numpy(x_pos), backend.to_numpy(y_pos), backend.to_numpy(z_pos)])
+
+        # Distance computation - keep as numpy (initialization code, not hot path)
+        # This is acceptable since Network creation is one-time cost
         diff = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
         distances = np.sqrt(np.sum(diff**2, axis=2))
 
-        # Link matrix: True if distance <= radius and not self-connection
         link_matrix = (distances <= radius) & (distances > 0)
-
-        # Weight matrix: initial_weight where links exist, 0 otherwise
         weight_matrix = np.where(link_matrix, initial_weight, 0.0)
 
         return cls(
