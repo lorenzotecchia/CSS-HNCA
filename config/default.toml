@@ -1,13 +1,13 @@
 seed = 42
 
 [network]
-n_neurons = 350
-box_size = [15.0, 15.0, 15.0]
+n_neurons = 300
+box_size = [10.0, 10.0, 10.0]
 radius = 2.0
 initial_weight = 0.06
 weight_min = 0.0
 weight_max = 0.3
-initial_firing_fraction = 0.20  # 15% of neurons fire at t=0
+initial_firing_fraction = 0.15  # 15% of neurons fire at t=0
 leak_rate = 0.08               # LIF: slower leak to sustain activity
 reset_potential = 0.4          # LIF: partial reset after firing
 
