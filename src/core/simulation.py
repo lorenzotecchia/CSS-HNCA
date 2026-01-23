@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from src.core.backend import ArrayBackend, get_backend
 from src.core.network import Network
 from src.core.neuron_state import NeuronState
 
@@ -46,6 +47,7 @@ class Simulation:
     forgetting_rate: float
     learner: HebbianLearner | None = None
     event_bus: EventBus | None = None
+    backend: ArrayBackend = field(default_factory=get_backend)
     time_step: int = field(default=0, init=False)
     sim_state: SimulationState = field(default=SimulationState.STOPPED, init=False)
 
@@ -134,15 +136,18 @@ class Simulation:
             self.network.link_matrix[:] = new_network.link_matrix
             self.network.weight_matrix[:] = new_network.weight_matrix
 
-            # Regenerate neuron state
+            # Regenerate neuron state (preserving LIF parameters)
             new_state = NeuronState.create(
                 n_neurons=self.network.n_neurons,
                 threshold=self.state.threshold,
                 initial_firing_fraction=self._initial_firing_fraction,
                 seed=seed,
+                leak_rate=self.state.leak_rate,
+                reset_potential=self.state.reset_potential,
             )
             self.state.firing[:] = new_state.firing
             self.state.firing_prev[:] = new_state.firing_prev
+            self.state.membrane_potential[:] = new_state.membrane_potential
 
         # Emit reset event
         if self.event_bus is not None:
@@ -166,5 +171,8 @@ class Simulation:
 
     @property
     def average_weight(self) -> float:
-        """Return average weight of all connections."""
-        return float(np.mean(self.network.weight_matrix))
+        """Return average weight of connected neurons only."""
+        connected_weights = self.network.weight_matrix[self.network.link_matrix]
+        if len(connected_weights) == 0:
+            return 0.0
+        return float(np.mean(connected_weights))
