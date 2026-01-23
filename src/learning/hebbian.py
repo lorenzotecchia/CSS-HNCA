@@ -14,6 +14,8 @@ from dataclasses import dataclass, field
 import numpy as np
 from numpy import ndarray
 
+from src.core.backend import ArrayBackend, get_backend
+
 
 @dataclass
 class HebbianLearner:
@@ -26,6 +28,7 @@ class HebbianLearner:
         weight_max: Maximum allowed weight
         decay_alpha: Baseline weight decay rate (default 0.0)
         oja_alpha: Oja rule decay coefficient (default 0.0)
+        backend: Array computation backend for future JAX integration
     """
 
     learning_rate: float
@@ -34,6 +37,7 @@ class HebbianLearner:
     weight_max: float
     decay_alpha: float = 0.0
     oja_alpha: float = 0.0
+    backend: ArrayBackend = field(default_factory=get_backend)
 
     def apply(
         self,
@@ -98,6 +102,6 @@ class HebbianLearner:
         new_weights = np.clip(new_weights, self.weight_min, self.weight_max)
 
         # Ensure no weights where no links
-        new_weights = np.where(link_matrix, new_weights, 0.0)
+        new_weights = self.backend.where(link_matrix, new_weights, 0.0)
 
         return new_weights
