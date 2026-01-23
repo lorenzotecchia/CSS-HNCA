@@ -3,9 +3,12 @@
 Renders a projected 3D network with directed edges weighted by opacity.
 Controls:
 - Space: single step
-- Enter: run/stop
-- R: reset with new reproducible seed
-- Esc: quit
+- Enter: run/stop (apply input when editing)
+- R: reset with new seed
+- S: edit seed
+- N: edit node count
+- A: edit avalanche target
+- Esc: quit (cancel input when editing)
 - Left mouse drag: orbit camera
 """
 
@@ -25,6 +28,7 @@ from src.core.network import Network
 from src.core.neuron_state import NeuronState
 from src.core.simulation import Simulation
 from src.learning.hebbian import HebbianLearner
+from src.visualization.avalanche_controller import AvalancheController
 
 DEFAULT_CONFIG_PATH = Path("config/default.toml")
 WINDOW_SIZE = (1500, 800)
@@ -37,9 +41,9 @@ NODE_FIRE = (220, 40, 40)
 NODE_OFF = (0, 0, 0)
 NODE_OUTLINE = (60, 60, 60)
 
-EDGE_MIN_ALPHA = 255
-EDGE_MAX_ALPHA = 255
-EDGE_THICKNESS = 2
+EDGE_MIN_ALPHA = 40
+EDGE_MAX_ALPHA = 160
+EDGE_THICKNESS = 1
 NODE_RADIUS = 8
 ROTATE_SENSITIVITY = 0.006
 ZOOM_SENSITIVITY = 0.1
@@ -57,14 +61,11 @@ class Slider:
     dragging: bool = False
 
     def draw(self, screen, font):
-        # Draw label
         label_surf = font.render(self.label, True, TEXT)
         screen.blit(label_surf, (self.rect.x, self.rect.y - 20))
 
-        # Draw bar
         pygame.draw.rect(screen, (100, 100, 100), self.rect, 2)
 
-        # Draw fill
         if self.max_val > self.min_val:
             fill_w = ((self.val - self.min_val) / (self.max_val - self.min_val)) * self.rect.w
         else:
@@ -72,11 +73,9 @@ class Slider:
         fill_rect = pygame.Rect(self.rect.x, self.rect.y, fill_w, self.rect.h)
         pygame.draw.rect(screen, (0, 150, 0), fill_rect)
 
-        # Draw knob
         knob_x = self.rect.x + fill_w
         pygame.draw.circle(screen, (255, 0, 0), (int(knob_x), self.rect.centery), 5)
 
-        # Draw value
         val_surf = font.render(f"{self.val:.3f}", True, TEXT)
         screen.blit(val_surf, (self.rect.right + 10, self.rect.y))
 
@@ -98,12 +97,10 @@ class Checkbox:
     label: str
 
     def draw(self, screen, font):
-        # Draw box
         pygame.draw.rect(screen, (100, 100, 100), self.rect, 2)
         if self.val:
             pygame.draw.rect(screen, (0, 150, 0), self.rect.inflate(-4, -4))
 
-        # Draw label
         label_surf = font.render(self.label, True, TEXT)
         screen.blit(label_surf, (self.rect.right + 10, self.rect.y))
 
@@ -120,15 +117,12 @@ class TextInput:
     active: bool = False
 
     def draw(self, screen, font):
-        # Draw label
         label_surf = font.render(self.label, True, TEXT)
         screen.blit(label_surf, (self.rect.x, self.rect.y - 20))
 
-        # Draw box
         color = (0, 150, 0) if self.active else (100, 100, 100)
         pygame.draw.rect(screen, color, self.rect, 2)
 
-        # Draw text
         text_surf = font.render(self.text, True, TEXT)
         screen.blit(text_surf, (self.rect.x + 5, self.rect.y + 5))
 
@@ -162,11 +156,19 @@ def weight_to_color(weight: float, weight_min: float, weight_max: float) -> tupl
     u = clamp01(u)
 
     alpha = int(EDGE_MIN_ALPHA + u * (EDGE_MAX_ALPHA - EDGE_MIN_ALPHA))
-    base = 200
-    shade = int(base * (1.0 - u))
-    r = shade
-    g = shade
-    b = shade
+    low = (40, 80, 200)
+    mid = (40, 180, 160)
+    high = (240, 220, 80)
+    if u < 0.5:
+        t = u / 0.5
+        r = int(low[0] + (mid[0] - low[0]) * t)
+        g = int(low[1] + (mid[1] - low[1]) * t)
+        b = int(low[2] + (mid[2] - low[2]) * t)
+    else:
+        t = (u - 0.5) / 0.5
+        r = int(mid[0] + (high[0] - mid[0]) * t)
+        g = int(mid[1] + (high[1] - mid[1]) * t)
+        b = int(mid[2] + (high[2] - mid[2]) * t)
     return (r, g, b, alpha)
 
 
@@ -229,9 +231,14 @@ def draw_arrowhead(
     pygame.draw.polygon(surface, color, [tip, left, right])
 
 
-def create_simulation(config_path: Path, seed: int | None, n_neurons: int, k_prop: float, a: float, b: float) -> Simulation:
-    config = load_config(config_path)
-
+def create_simulation(
+    config: "SimulationConfig",
+    seed: int | None,
+    n_neurons: int,
+    k_prop: float,
+    a: float,
+    b: float,
+) -> Simulation:
     network = Network.create_beta_weighted_directed(
         n_neurons=n_neurons,
         k_prop=k_prop,
@@ -273,13 +280,13 @@ def main() -> None:
     reset_index = 0
     current_seed = base_seed
 
-    # Initial network parameters
     n_neurons = config.network.n_neurons
-    k_prop = 0.05  # Default
+    k_prop = 0.05
     beta_a = 2.0
     beta_b = 6.0
 
-    simulation = create_simulation(DEFAULT_CONFIG_PATH, current_seed, n_neurons, k_prop, beta_a, beta_b)
+    simulation = create_simulation(config, current_seed, n_neurons, k_prop, beta_a, beta_b)
+    avalanche_controller = AvalancheController(simulation, n_neurons=n_neurons)
 
     pygame.init()
     screen = pygame.display.set_mode(WINDOW_SIZE)
@@ -308,7 +315,6 @@ def main() -> None:
 
     edge_layer = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
 
-    # UI Elements
     ui_elements = []
     y_pos = 100
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.1, simulation.learner.learning_rate, "L Rate"))
@@ -332,7 +338,7 @@ def main() -> None:
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0, 50, simulation.learner.max_spike_amount, "Max Spikes"))
     y_pos += 30
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.1, simulation.learner.weight_change_constant, "W Change"))
-    y_pos += 50  # Space for network params
+    y_pos += 50
     ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(n_neurons), "N Neurons"))
     y_pos += 35
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.001, 0.5, k_prop, "K Prop"))
@@ -341,33 +347,93 @@ def main() -> None:
     y_pos += 30
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.1, 10.0, beta_b, "Beta B"))
 
-    # Set initial k_prop bounds
     ui_elements[12].min_val = 2 / n_neurons
     ui_elements[12].max_val = 1 - 1 / n_neurons
     ui_elements[12].val = max(ui_elements[12].min_val, min(ui_elements[12].max_val, k_prop))
 
-    def do_step() -> None:
-        simulation.step()
+    input_mode: str | None = None
+    input_buffer = ""
+    input_error: str | None = None
 
-    def do_reset() -> None:
-        nonlocal reset_index, current_seed, projected_nodes, edge_indices, running_sim, accumulator, simulation, n_neurons, k_prop, beta_a, beta_b
-        reset_index += 1
-        current_seed = base_seed + reset_index
-        # Update params from sliders
+    def read_network_params_from_ui() -> None:
+        nonlocal n_neurons, k_prop, beta_a, beta_b
         try:
             n_neurons = int(ui_elements[11].text)
         except ValueError:
-            pass  # keep old
+            pass
         k_prop = ui_elements[12].val
         beta_a = ui_elements[13].val
         beta_b = ui_elements[14].val
-        simulation = create_simulation(DEFAULT_CONFIG_PATH, current_seed, n_neurons, k_prop, beta_a, beta_b)
+
+    def rebuild_simulation(new_seed: int | None = None) -> None:
+        nonlocal simulation, projected_nodes, edge_indices, running_sim, accumulator, current_seed
+        if new_seed is not None:
+            current_seed = new_seed
+        simulation = create_simulation(config, current_seed, n_neurons, k_prop, beta_a, beta_b)
         projected_nodes = project_positions(
             simulation.network.positions, simulation.network.box_size, viewport, yaw, pitch, zoom
         )
         edge_indices = [tuple(idx) for idx in np.argwhere(simulation.network.link_matrix)]
         running_sim = False
         accumulator = 0.0
+        avalanche_controller.rebind(simulation, n_neurons=n_neurons, reset_seen=True)
+
+    def do_step() -> None:
+        nonlocal running_sim
+        simulation.step()
+        if not avalanche_controller.record_step(simulation.time_step, simulation.firing_count):
+            running_sim = False
+
+    def do_reset() -> None:
+        nonlocal reset_index, current_seed
+        reset_index += 1
+        current_seed = base_seed + reset_index
+        read_network_params_from_ui()
+        rebuild_simulation(new_seed=current_seed)
+
+    def start_input(mode: str) -> None:
+        nonlocal input_mode, input_buffer, input_error
+        input_mode = mode
+        input_error = None
+        if mode == "seed":
+            input_buffer = str(current_seed)
+        elif mode == "nodes":
+            input_buffer = str(n_neurons)
+        else:
+            input_buffer = str(avalanche_controller.target or "")
+
+    def commit_input() -> None:
+        nonlocal base_seed, reset_index, current_seed, n_neurons, input_mode, input_error
+        nonlocal running_sim
+        if input_mode is None:
+            return
+        try:
+            value = int(input_buffer)
+        except ValueError:
+            input_error = "Enter a whole number."
+            return
+        if input_mode == "seed":
+            base_seed = value
+            reset_index = 0
+            current_seed = value
+            rebuild_simulation(new_seed=current_seed)
+        elif input_mode == "nodes":
+            if value <= 0:
+                input_error = "Node count must be > 0."
+                return
+            n_neurons = value
+            ui_elements[11].text = str(n_neurons)
+            read_network_params_from_ui()
+            rebuild_simulation(new_seed=current_seed)
+        elif input_mode == "avalanches":
+            try:
+                avalanche_controller.set_target(value)
+            except ValueError as exc:
+                input_error = str(exc)
+                return
+            running_sim = True
+        input_mode = None
+        input_error = None
 
     def toggle_run() -> None:
         nonlocal running_sim
@@ -378,7 +444,6 @@ def main() -> None:
         dt = clock.tick(config.visualization.fps) / 1000.0
 
         for event in pygame.event.get():
-            # Handle UI events first
             for elem in ui_elements:
                 elem.handle_event(event)
 
@@ -416,16 +481,34 @@ def main() -> None:
                     zoom,
                 )
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    alive = False
-                elif event.key == pygame.K_SPACE:
-                    do_step()
-                elif event.key == pygame.K_RETURN:
-                    toggle_run()
-                elif event.key == pygame.K_r:
-                    do_reset()
+                if input_mode is not None:
+                    if event.key == pygame.K_ESCAPE:
+                        input_mode = None
+                        input_error = None
+                    elif event.key == pygame.K_RETURN:
+                        commit_input()
+                    elif event.key == pygame.K_BACKSPACE:
+                        input_buffer = input_buffer[:-1]
+                    else:
+                        char = event.unicode
+                        if char.isdigit() or (char == "-" and not input_buffer):
+                            input_buffer += char
+                else:
+                    if event.key == pygame.K_ESCAPE:
+                        alive = False
+                    elif event.key == pygame.K_SPACE:
+                        do_step()
+                    elif event.key == pygame.K_RETURN:
+                        toggle_run()
+                    elif event.key == pygame.K_r:
+                        do_reset()
+                    elif event.key == pygame.K_s:
+                        start_input("seed")
+                    elif event.key == pygame.K_n:
+                        start_input("nodes")
+                    elif event.key == pygame.K_a:
+                        start_input("avalanches")
 
-        # Update learner parameters from UI
         simulation.learner.learning_rate = ui_elements[0].val
         simulation.learner.forgetting_rate = ui_elements[1].val
         simulation.learner.weight_min = ui_elements[2].val
@@ -436,18 +519,21 @@ def main() -> None:
         old_timespan = simulation.learner.spike_timespan
         simulation.learner.spike_timespan = int(ui_elements[7].val)
         if simulation.learner.spike_timespan != old_timespan:
-            simulation.learner.spike_history = deque(simulation.learner.spike_history, maxlen=simulation.learner.spike_timespan)
+            simulation.learner.spike_history = deque(
+                simulation.learner.spike_history, maxlen=simulation.learner.spike_timespan
+            )
         simulation.learner.min_spike_amount = int(ui_elements[8].val)
         simulation.learner.max_spike_amount = int(ui_elements[9].val)
         simulation.learner.weight_change_constant = ui_elements[10].val
 
-        # Update k_prop slider bounds based on current n_neurons text
         try:
             current_n = int(ui_elements[11].text)
             if current_n >= 3:
                 ui_elements[12].min_val = 2 / current_n
                 ui_elements[12].max_val = 1 - 1 / current_n
-                ui_elements[12].val = max(ui_elements[12].min_val, min(ui_elements[12].max_val, ui_elements[12].val))
+                ui_elements[12].val = max(
+                    ui_elements[12].min_val, min(ui_elements[12].max_val, ui_elements[12].val)
+                )
         except ValueError:
             pass
 
@@ -455,8 +541,9 @@ def main() -> None:
             accumulator += dt
             step_dt = 1.0 / max(0.1, steps_per_second)
             while accumulator >= step_dt:
-                simulation.step()
+                do_step()
                 accumulator -= step_dt
+            avalanche_controller.update(dt)
 
         screen.fill(BG)
 
@@ -465,7 +552,6 @@ def main() -> None:
             screen, (180, 180, 180), (panel_w, 0), (panel_w, screen.get_height()), 2
         )
 
-        # Draw UI elements
         for elem in ui_elements:
             elem.draw(screen, font)
 
@@ -503,22 +589,37 @@ def main() -> None:
         title = font_big.render("Controls", True, TEXT)
         screen.blit(title, (20, 20))
 
-        line_y = 56
-        for line in [
+        stats_lines = [
             f"t = {simulation.time_step}",
             f"firing = {simulation.firing_count}",
             f"avg_w = {simulation.average_weight:.4f}",
             f"seed = {current_seed}",
+            f"nodes = {n_neurons}",
+            avalanche_controller.status_line(),
             f"mode = {'run' if running_sim else 'paused'}",
-        ]:
+        ]
+        if input_mode is not None:
+            label = {"seed": "seed", "nodes": "nodes", "avalanches": "avalanches"}[input_mode]
+            input_line = f"{label} = {input_buffer or ''}_"
+            target = 3 if input_mode == "seed" else 4 if input_mode == "nodes" else 5
+            stats_lines[target] = input_line
+
+        line_y = 56
+        for line in stats_lines:
             txt = font.render(line, True, TEXT)
             screen.blit(txt, (20, line_y))
             line_y += 24
+        if input_mode is not None and input_error:
+            err = font.render(input_error, True, (180, 40, 40))
+            screen.blit(err, (20, line_y + 8))
 
         hint_lines = [
             "Space = Step",
             "Enter = Run/Stop",
             "R = Reset",
+            "S = Edit Seed",
+            "N = Edit Nodes",
+            "A = Edit Avalanches",
             "Wheel = Zoom",
             "Esc = Quit",
         ]
