@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 import time
+from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,6 +45,103 @@ ROTATE_SENSITIVITY = 0.006
 ZOOM_SENSITIVITY = 0.1
 ZOOM_MIN = 0.4
 ZOOM_MAX = 2.5
+
+
+@dataclass
+class Slider:
+    rect: pygame.Rect
+    min_val: float
+    max_val: float
+    val: float
+    label: str
+    dragging: bool = False
+
+    def draw(self, screen, font):
+        # Draw label
+        label_surf = font.render(self.label, True, TEXT)
+        screen.blit(label_surf, (self.rect.x, self.rect.y - 20))
+
+        # Draw bar
+        pygame.draw.rect(screen, (100, 100, 100), self.rect, 2)
+
+        # Draw fill
+        if self.max_val > self.min_val:
+            fill_w = ((self.val - self.min_val) / (self.max_val - self.min_val)) * self.rect.w
+        else:
+            fill_w = self.rect.w
+        fill_rect = pygame.Rect(self.rect.x, self.rect.y, fill_w, self.rect.h)
+        pygame.draw.rect(screen, (0, 150, 0), fill_rect)
+
+        # Draw knob
+        knob_x = self.rect.x + fill_w
+        pygame.draw.circle(screen, (255, 0, 0), (int(knob_x), self.rect.centery), 5)
+
+        # Draw value
+        val_surf = font.render(f"{self.val:.3f}", True, TEXT)
+        screen.blit(val_surf, (self.rect.right + 10, self.rect.y))
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(event.pos):
+            self.dragging = True
+        elif event.type == pygame.MOUSEBUTTONUP:
+            self.dragging = False
+        elif event.type == pygame.MOUSEMOTION and self.dragging:
+            rel_x = event.pos[0] - self.rect.x
+            frac = max(0.0, min(1.0, rel_x / self.rect.w))
+            self.val = self.min_val + frac * (self.max_val - self.min_val)
+
+
+@dataclass
+class Checkbox:
+    rect: pygame.Rect
+    val: bool
+    label: str
+
+    def draw(self, screen, font):
+        # Draw box
+        pygame.draw.rect(screen, (100, 100, 100), self.rect, 2)
+        if self.val:
+            pygame.draw.rect(screen, (0, 150, 0), self.rect.inflate(-4, -4))
+
+        # Draw label
+        label_surf = font.render(self.label, True, TEXT)
+        screen.blit(label_surf, (self.rect.right + 10, self.rect.y))
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(event.pos):
+            self.val = not self.val
+
+
+@dataclass
+class TextInput:
+    rect: pygame.Rect
+    text: str
+    label: str
+    active: bool = False
+
+    def draw(self, screen, font):
+        # Draw label
+        label_surf = font.render(self.label, True, TEXT)
+        screen.blit(label_surf, (self.rect.x, self.rect.y - 20))
+
+        # Draw box
+        color = (0, 150, 0) if self.active else (100, 100, 100)
+        pygame.draw.rect(screen, color, self.rect, 2)
+
+        # Draw text
+        text_surf = font.render(self.text, True, TEXT)
+        screen.blit(text_surf, (self.rect.x + 5, self.rect.y + 5))
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            self.active = self.rect.collidepoint(event.pos)
+        elif event.type == pygame.KEYDOWN and self.active:
+            if event.key == pygame.K_RETURN:
+                self.active = False
+            elif event.key == pygame.K_BACKSPACE:
+                self.text = self.text[:-1]
+            else:
+                self.text += event.unicode
 
 
 @dataclass
@@ -131,19 +229,19 @@ def draw_arrowhead(
     pygame.draw.polygon(surface, color, [tip, left, right])
 
 
-def create_simulation(config_path: Path, seed: int | None) -> Simulation:
+def create_simulation(config_path: Path, seed: int | None, n_neurons: int, k_prop: float, a: float, b: float) -> Simulation:
     config = load_config(config_path)
 
-    network = Network.create_random(
-        n_neurons=config.network.n_neurons,
-        box_size=config.network.box_size,
-        radius=config.network.radius,
-        initial_weight=config.network.initial_weight,
+    network = Network.create_beta_weighted_directed(
+        n_neurons=n_neurons,
+        k_prop=k_prop,
+        a=a,
+        b=b,
         seed=seed,
     )
 
     state = NeuronState.create(
-        n_neurons=config.network.n_neurons,
+        n_neurons=n_neurons,
         threshold=config.learning.threshold,
         initial_firing_fraction=config.network.initial_firing_fraction,
         seed=seed,
@@ -175,7 +273,13 @@ def main() -> None:
     reset_index = 0
     current_seed = base_seed
 
-    simulation = create_simulation(DEFAULT_CONFIG_PATH, current_seed)
+    # Initial network parameters
+    n_neurons = config.network.n_neurons
+    k_prop = 0.05  # Default
+    beta_a = 2.0
+    beta_b = 6.0
+
+    simulation = create_simulation(DEFAULT_CONFIG_PATH, current_seed, n_neurons, k_prop, beta_a, beta_b)
 
     pygame.init()
     screen = pygame.display.set_mode(WINDOW_SIZE)
@@ -204,14 +308,60 @@ def main() -> None:
 
     edge_layer = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
 
+    # UI Elements
+    ui_elements = []
+    y_pos = 100
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.1, simulation.learner.learning_rate, "L Rate"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.1, simulation.learner.forgetting_rate, "F Rate"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 1.0, simulation.learner.weight_min, "W Min"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 1.0, simulation.learner.weight_max, "W Max"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.01, simulation.learner.decay_alpha, "Decay"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.01, simulation.learner.oja_alpha, "Oja"))
+    y_pos += 30
+    ui_elements.append(Checkbox(pygame.Rect(20, y_pos, 20, 20), simulation.learner.enable_homeostatic, "Homeo"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 10, 200, simulation.learner.spike_timespan, "Timespan"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0, 50, simulation.learner.min_spike_amount, "Min Spikes"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0, 50, simulation.learner.max_spike_amount, "Max Spikes"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.1, simulation.learner.weight_change_constant, "W Change"))
+    y_pos += 50  # Space for network params
+    ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(n_neurons), "N Neurons"))
+    y_pos += 35
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.001, 0.5, k_prop, "K Prop"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.1, 10.0, beta_a, "Beta A"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.1, 10.0, beta_b, "Beta B"))
+
+    # Set initial k_prop bounds
+    ui_elements[12].min_val = 2 / n_neurons
+    ui_elements[12].max_val = 1 - 1 / n_neurons
+    ui_elements[12].val = max(ui_elements[12].min_val, min(ui_elements[12].max_val, k_prop))
+
     def do_step() -> None:
         simulation.step()
 
     def do_reset() -> None:
-        nonlocal reset_index, current_seed, projected_nodes, edge_indices, running_sim, accumulator
+        nonlocal reset_index, current_seed, projected_nodes, edge_indices, running_sim, accumulator, simulation, n_neurons, k_prop, beta_a, beta_b
         reset_index += 1
         current_seed = base_seed + reset_index
-        simulation.reset(seed=current_seed)
+        # Update params from sliders
+        try:
+            n_neurons = int(ui_elements[11].text)
+        except ValueError:
+            pass  # keep old
+        k_prop = ui_elements[12].val
+        beta_a = ui_elements[13].val
+        beta_b = ui_elements[14].val
+        simulation = create_simulation(DEFAULT_CONFIG_PATH, current_seed, n_neurons, k_prop, beta_a, beta_b)
         projected_nodes = project_positions(
             simulation.network.positions, simulation.network.box_size, viewport, yaw, pitch, zoom
         )
@@ -228,6 +378,10 @@ def main() -> None:
         dt = clock.tick(config.visualization.fps) / 1000.0
 
         for event in pygame.event.get():
+            # Handle UI events first
+            for elem in ui_elements:
+                elem.handle_event(event)
+
             if event.type == pygame.QUIT:
                 alive = False
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -271,6 +425,32 @@ def main() -> None:
                 elif event.key == pygame.K_r:
                     do_reset()
 
+        # Update learner parameters from UI
+        simulation.learner.learning_rate = ui_elements[0].val
+        simulation.learner.forgetting_rate = ui_elements[1].val
+        simulation.learner.weight_min = ui_elements[2].val
+        simulation.learner.weight_max = ui_elements[3].val
+        simulation.learner.decay_alpha = ui_elements[4].val
+        simulation.learner.oja_alpha = ui_elements[5].val
+        simulation.learner.enable_homeostatic = ui_elements[6].val
+        old_timespan = simulation.learner.spike_timespan
+        simulation.learner.spike_timespan = int(ui_elements[7].val)
+        if simulation.learner.spike_timespan != old_timespan:
+            simulation.learner.spike_history = deque(simulation.learner.spike_history, maxlen=simulation.learner.spike_timespan)
+        simulation.learner.min_spike_amount = int(ui_elements[8].val)
+        simulation.learner.max_spike_amount = int(ui_elements[9].val)
+        simulation.learner.weight_change_constant = ui_elements[10].val
+
+        # Update k_prop slider bounds based on current n_neurons text
+        try:
+            current_n = int(ui_elements[11].text)
+            if current_n >= 3:
+                ui_elements[12].min_val = 2 / current_n
+                ui_elements[12].max_val = 1 - 1 / current_n
+                ui_elements[12].val = max(ui_elements[12].min_val, min(ui_elements[12].max_val, ui_elements[12].val))
+        except ValueError:
+            pass
+
         if running_sim:
             accumulator += dt
             step_dt = 1.0 / max(0.1, steps_per_second)
@@ -284,6 +464,10 @@ def main() -> None:
         pygame.draw.line(
             screen, (180, 180, 180), (panel_w, 0), (panel_w, screen.get_height()), 2
         )
+
+        # Draw UI elements
+        for elem in ui_elements:
+            elem.draw(screen, font)
 
         edge_layer.fill((0, 0, 0, 0))
         linked_weights = simulation.network.weight_matrix[simulation.network.link_matrix]
