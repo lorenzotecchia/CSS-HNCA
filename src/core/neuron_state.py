@@ -3,7 +3,7 @@
 Represents the firing state of neurons at each time step.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from numpy import ndarray
@@ -22,6 +22,7 @@ class NeuronState:
         membrane_potential: Shape (N,) - LIF membrane potential (float)
         leak_rate: LIF leak rate λ (potential decays by this fraction each step)
         reset_potential: Amount subtracted from potential after firing
+        backend: Array backend for computation (NumPy or JAX)
     """
 
     firing: ndarray
@@ -30,6 +31,7 @@ class NeuronState:
     membrane_potential: ndarray
     leak_rate: float
     reset_potential: float
+    backend: ArrayBackend = field(default_factory=get_backend)
 
     @classmethod
     def create(
@@ -94,6 +96,7 @@ class NeuronState:
             membrane_potential=backend.to_numpy(membrane_potential),
             leak_rate=leak_rate,
             reset_potential=reset_potential,
+            backend=backend,
         )
 
     def update_firing(self, input_signal: ndarray) -> None:
@@ -105,24 +108,34 @@ class NeuronState:
         Neurons fire if their membrane potential >= threshold.
         Previous firing state is preserved before update.
 
+        Note:
+            Uses functional operations via backend for JAX compatibility.
+            Arrays are stored as numpy but backend operations work on them.
+
         Args:
             input_signal: Shape (N,) - weighted sum of inputs for each neuron
         """
+        backend = self.backend
+
         # Preserve current state as previous
-        np.copyto(self.firing_prev, self.firing)
+        self.firing_prev = backend.copy(self.firing)
 
         # LIF dynamics:
         # 1. Leak: decay toward zero
-        self.membrane_potential *= (1 - self.leak_rate)
+        potential = self.membrane_potential * (1 - self.leak_rate)
         
         # 2. Integrate: add input signal
-        self.membrane_potential += input_signal
+        potential = potential + input_signal
         
         # 3. Fire: check threshold
-        np.copyto(self.firing, self.membrane_potential >= self.threshold)
+        firing = potential >= self.threshold
         
         # 4. Reset: subtract reset_potential for neurons that fired
-        self.membrane_potential -= self.reset_potential * self.firing.astype(float)
+        potential = potential - self.reset_potential * firing.astype(float)
         
-        # Clamp potential to non-negative (biological constraint)
-        np.maximum(self.membrane_potential, 0.0, out=self.membrane_potential)
+        # 5. Clamp potential to non-negative (biological constraint)
+        potential = backend.maximum(potential, 0.0)
+
+        # Update stored arrays (convert to numpy for storage)
+        self.membrane_potential = backend.to_numpy(potential)
+        self.firing = backend.to_numpy(firing)
