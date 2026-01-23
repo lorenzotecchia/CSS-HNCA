@@ -49,7 +49,7 @@ s_i(t) =
 $$
 
 
-# Network Generation Algorithm
+## Network Generation Algorithm
 
 This algorithm receives the number of nodes N, the average degree proportion $k_{prop}$ and the beta distribution values $a$ and $b$ (=2 and =6) as input, and returns a matrix representation of a directed network with $N$ nodes and $k_{prop} \cdot N^2$ weighted directed edges. 
 
@@ -66,6 +66,39 @@ Calculate $\langle k \rangle = k_{prop} \cdot N$.
 4. Sample round($k_{prop} \cdot N^2)-N$ edges (`int` value) from the list created in step 3, and add the edges to the network.
 5. Give all edges in the network a random weight (both initial and added) based on a beta-distribution with the values a and b gathered from the input. 
 6. Convert the directed network into a matrix representation and return this matrix.
+
+## Inhibitory neurons 
+
+Implement the option to add inhibitory nodes to the network. If this option is turned off, all out-degree edges in the network should have a positive sign and the weights are bounded by 0 and 1. Otherwise, there should be a way to implement inhibitory nodes. This is done by selecting some nodes randomly based on an inhibitory node proportion, and giving all their out-degree edges a negative sign. Other than the negative sign, it should function the same way as a normal/excitatory node. For example, if the weight of an inhibitory out-degree edge is -0.5 and the STDP rules state the weights should increase by 0.1, the new weight should be -0.6. The out-degree edges of inhibitory nodes are bounded by -1 and 0. Therefore, this implementation also affects the weight update algorithm, as it should take into account these negative weights and change the weights correctly.
+	
+New variables
+- Inhibitory proportion
+
+
+
+## Potential memory/decay algorithm
+
+Add the option to simulate potential memory/decay. If there is no potential memory/decay, it means each node only checks the sum of weights at time t. If there is potential memory/decay, there is some memory of the node potential. Each timestep, it saves the potential of the previous timestep. The potential does decrease according to a decay function (make it constant initially). After a neuron spikes, the potential of that node should be 0 again. It might be the case that there are inhibitory neurons that can make the potential negative. Therefore, the potential decay function should always move the potential to 0. 
+
+New variables
+- Decay constant/variable
+- Memory duration
+
+## Homeostatic scaling algorithm
+
+Implement the option of homeostatic scaling. When it is turned off, only the local STDP rules are at work. If the homeostatic scaling function is activated, it checks the amount of spiking of each node within a given time window and adjusts the weights of all in-degree edges accordingly. This is a more global function than the STDP rules, as now all in-degree edges are adjusted equally at the same time instead of each edge individually. 
+
+Basic rules:
+- If a neuron does not spike often enough, make all incoming edges increase their weight. 
+- If a neuron spikes too often, make all incoming edges decrease their weight.
+  
+New variables
+- Spike timespan
+- Minimum spike amount
+- Maximum spike amount
+- Weight change constant/variable
+
+
 
 ## Brainstorming:
 1. Formalizing the Hebbian Rule with "Forgetting": While basic Hebbian rules are unstable and lead to infinite weight growth, the text provides two specific ways to implement your "forgetting" or decay concept.
