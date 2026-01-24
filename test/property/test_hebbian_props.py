@@ -307,3 +307,44 @@ class TestDeterminism:
         _ = learner.apply(weights, link_matrix, firing_prev, firing_current)
 
         assert np.array_equal(weights, original)
+
+
+class TestExcitatoryInhibitoryBounds:
+    """Property tests for excitatory/inhibitory weight bounds."""
+
+    @given(seed=st.integers(min_value=0, max_value=10000))
+    @settings(max_examples=50)
+    def test_weight_bounds_preserved_after_learning(self, seed):
+        """Weights should stay within type-specific bounds after learning."""
+        rng = np.random.default_rng(seed)
+        n = 20
+
+        neuron_types = rng.random(n) < 0.5
+        # Initialize with signed weights based on type
+        weights = np.where(neuron_types[:, None], 0.1, -0.1) * rng.random((n, n))
+        link_matrix = rng.random((n, n)) < 0.3
+        np.fill_diagonal(link_matrix, False)
+
+        learner = HebbianLearner(
+            learning_rate=0.1,
+            forgetting_rate=0.1,
+            weight_min=0.0,
+            weight_max=0.3,
+            weight_min_inh=-0.3,
+            weight_max_inh=0.0,
+        )
+
+        firing_prev = rng.random(n) < 0.3
+        firing_curr = rng.random(n) < 0.3
+
+        new_weights = learner.apply(
+            weights, link_matrix, firing_prev, firing_curr, neuron_types
+        )
+
+        for i in range(n):
+            if neuron_types[i]:
+                assert np.all(new_weights[i] >= 0.0)
+                assert np.all(new_weights[i] <= 0.3)
+            else:
+                assert np.all(new_weights[i] >= -0.3)
+                assert np.all(new_weights[i] <= 0.0)

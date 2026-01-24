@@ -284,3 +284,48 @@ class TestNetworkReproducibilityProperties:
         assert np.array_equal(net1.positions, net2.positions)
         assert np.array_equal(net1.link_matrix, net2.link_matrix)
         assert np.array_equal(net1.weight_matrix, net2.weight_matrix)
+
+
+class TestNeuronTypeProperties:
+    """Property tests for neuron type invariants."""
+
+    @given(
+        n_neurons=st.integers(min_value=10, max_value=100),
+        excitatory_fraction=st.floats(min_value=0.0, max_value=1.0),
+        seed=st.integers(min_value=0, max_value=10000),
+    )
+    @settings(max_examples=50)
+    def test_neuron_types_length_matches_n_neurons(
+        self, n_neurons, excitatory_fraction, seed
+    ):
+        """neuron_types array should have length n_neurons."""
+        network = Network.create_random(
+            n_neurons=n_neurons,
+            box_size=(10.0, 10.0, 10.0),
+            radius=2.0,
+            initial_weight=0.1,
+            excitatory_fraction=excitatory_fraction,
+            seed=seed,
+        )
+        assert len(network.neuron_types) == n_neurons
+
+    @given(seed=st.integers(min_value=0, max_value=10000))
+    @settings(max_examples=50)
+    def test_weight_signs_match_neuron_types(self, seed):
+        """Excitatory neurons have non-negative weights, inhibitory non-positive."""
+        network = Network.create_random(
+            n_neurons=50,
+            box_size=(10.0, 10.0, 10.0),
+            radius=3.0,
+            initial_weight=0.1,
+            excitatory_fraction=0.5,
+            seed=seed,
+        )
+        for i in range(network.n_neurons):
+            connected = network.link_matrix[i]
+            if np.any(connected):
+                weights = network.weight_matrix[i, connected]
+                if network.neuron_types[i]:  # Excitatory
+                    assert np.all(weights >= 0)
+                else:  # Inhibitory
+                    assert np.all(weights <= 0)
