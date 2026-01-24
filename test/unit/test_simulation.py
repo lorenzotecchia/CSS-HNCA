@@ -228,3 +228,38 @@ class TestSimulationMetrics:
         avg = simulation.average_weight
         assert isinstance(avg, float)
         assert avg >= 0
+
+
+class TestSimulationNeuronTypes:
+    """Tests for neuron_types passing to learner."""
+
+    def test_simulation_passes_neuron_types_to_learner(self):
+        """Simulation should pass network.neuron_types to learner.apply()."""
+        from unittest.mock import MagicMock
+
+        network = Network.create_random(
+            n_neurons=10,
+            box_size=(5.0, 5.0, 5.0),
+            radius=2.0,
+            initial_weight=0.1,
+            excitatory_fraction=0.5,
+            seed=42,
+        )
+        state = NeuronState.create(n_neurons=10, threshold=0.5, initial_firing_fraction=0.2, seed=42)
+        learner = MagicMock()
+        learner.apply.return_value = network.weight_matrix.copy()
+
+        sim = Simulation(
+            network=network,
+            state=state,
+            learning_rate=0.1,
+            forgetting_rate=0.05,
+            learner=learner,
+        )
+        sim.start()
+        sim.step()
+
+        # Verify neuron_types was passed
+        call_kwargs = learner.apply.call_args.kwargs
+        assert "neuron_types" in call_kwargs
+        assert np.array_equal(call_kwargs["neuron_types"], network.neuron_types)

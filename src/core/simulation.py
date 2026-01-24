@@ -95,6 +95,7 @@ class Simulation:
                 link_matrix=self.network.link_matrix,
                 firing_prev=firing_prev,
                 firing_current=self.state.firing,
+                neuron_types=getattr(self.network, "neuron_types", None),
             )
             self.network.weight_matrix[:] = new_weights
 
