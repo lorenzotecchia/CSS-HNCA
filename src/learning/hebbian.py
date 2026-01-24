@@ -24,10 +24,12 @@ class HebbianLearner:
     Attributes:
         learning_rate: l - amount to increase weight on LTP
         forgetting_rate: f - amount to decrease weight on LTD
-        weight_min: Minimum allowed weight
-        weight_max: Maximum allowed weight
+        weight_min: Minimum allowed weight for excitatory neurons
+        weight_max: Maximum allowed weight for excitatory neurons
         decay_alpha: Baseline weight decay rate (default 0.0)
         oja_alpha: Oja rule decay coefficient (default 0.0)
+        weight_min_inh: Minimum allowed weight for inhibitory neurons
+        weight_max_inh: Maximum allowed weight for inhibitory neurons
         backend: Array computation backend for future JAX integration
     """
 
@@ -37,6 +39,8 @@ class HebbianLearner:
     weight_max: float
     decay_alpha: float = 0.0
     oja_alpha: float = 0.0
+    weight_min_inh: float = -0.3
+    weight_max_inh: float = 0.0
     backend: ArrayBackend = field(default_factory=get_backend)
 
     def apply(
@@ -45,6 +49,7 @@ class HebbianLearner:
         link_matrix: ndarray,
         firing_prev: ndarray,
         firing_current: ndarray,
+        neuron_types: ndarray | None = None,
     ) -> ndarray:
         """Apply STDP learning rule with weight decay.
 
@@ -61,6 +66,8 @@ class HebbianLearner:
             link_matrix: Structural connectivity (N, N) bool
             firing_prev: Firing state at t-1 (N,)
             firing_current: Firing state at t (N,)
+            neuron_types: Boolean array (N,) - True=excitatory, False=inhibitory.
+                          If None, all neurons treated as excitatory (backward compat).
 
         Returns:
             Updated weight matrix with bounds enforced
@@ -98,8 +105,18 @@ class HebbianLearner:
             # Apply to each column j: new_weights[:, j] -= oja_decay[j] * new_weights[:, j]
             new_weights -= new_weights * oja_decay[np.newaxis, :]
 
-        # Enforce bounds
-        new_weights = np.clip(new_weights, self.weight_min, self.weight_max)
+        # Enforce per-type bounds
+        if neuron_types is not None:
+            # Create per-row min/max based on neuron type (row = source neuron)
+            min_bounds = np.where(neuron_types, self.weight_min, self.weight_min_inh)
+            max_bounds = np.where(neuron_types, self.weight_max, self.weight_max_inh)
+            # Clip each row according to its neuron type (vectorized)
+            min_bounds_matrix = min_bounds[:, np.newaxis]
+            max_bounds_matrix = max_bounds[:, np.newaxis]
+            new_weights = np.clip(new_weights, min_bounds_matrix, max_bounds_matrix)
+        else:
+            # Backward compatibility: all excitatory
+            new_weights = np.clip(new_weights, self.weight_min, self.weight_max)
 
         # Ensure no weights where no links
         new_weights = self.backend.where(link_matrix, new_weights, 0.0)

@@ -421,3 +421,75 @@ class TestEdgeCases:
 
         # No LTD, weight stays same
         assert new_weights[0, 1] == 0.5
+
+
+class TestPerTypeWeightBounds:
+    """Tests for per-type (excitatory/inhibitory) weight bounds."""
+
+    def test_learner_accepts_inhibitory_bounds(self):
+        """HebbianLearner should accept weight_min_inh and weight_max_inh."""
+        learner = HebbianLearner(
+            learning_rate=0.1,
+            forgetting_rate=0.05,
+            weight_min=0.0,
+            weight_max=0.3,
+            weight_min_inh=-0.3,
+            weight_max_inh=0.0,
+        )
+        assert learner.weight_min_inh == -0.3
+        assert learner.weight_max_inh == 0.0
+
+    def test_apply_enforces_excitatory_bounds(self):
+        """Excitatory neurons should be clamped to [weight_min, weight_max]."""
+        learner = HebbianLearner(
+            learning_rate=0.5,
+            forgetting_rate=0.0,
+            weight_min=0.0,
+            weight_max=0.2,
+            weight_min_inh=-0.2,
+            weight_max_inh=0.0,
+        )
+        weights = np.array([[0.0, 0.15], [0.0, 0.0]])
+        link_matrix = np.array([[False, True], [False, False]])
+        neuron_types = np.array([True, True])  # Both excitatory
+        firing_prev = np.array([True, False])
+        firing_curr = np.array([False, True])
+
+        new_weights = learner.apply(weights, link_matrix, firing_prev, firing_curr, neuron_types)
+        assert new_weights[0, 1] <= 0.2  # Clamped to max
+
+    def test_apply_enforces_inhibitory_bounds(self):
+        """Inhibitory neurons should be clamped to [weight_min_inh, weight_max_inh]."""
+        learner = HebbianLearner(
+            learning_rate=0.5,
+            forgetting_rate=0.0,
+            weight_min=0.0,
+            weight_max=0.2,
+            weight_min_inh=-0.2,
+            weight_max_inh=0.0,
+        )
+        weights = np.array([[0.0, -0.1], [0.0, 0.0]])
+        link_matrix = np.array([[False, True], [False, False]])
+        neuron_types = np.array([False, True])  # First inhibitory
+        firing_prev = np.array([True, False])
+        firing_curr = np.array([False, True])
+
+        new_weights = learner.apply(weights, link_matrix, firing_prev, firing_curr, neuron_types)
+        assert -0.2 <= new_weights[0, 1] <= 0.0
+
+    def test_apply_backward_compatible_without_neuron_types(self):
+        """apply() should work without neuron_types for backward compatibility."""
+        learner = HebbianLearner(
+            learning_rate=0.1,
+            forgetting_rate=0.05,
+            weight_min=0.0,
+            weight_max=0.3,
+        )
+        weights = np.array([[0.0, 0.1], [0.0, 0.0]])
+        link_matrix = np.array([[False, True], [False, False]])
+        firing_prev = np.array([True, False])
+        firing_curr = np.array([False, True])
+
+        # Should not raise - uses excitatory bounds only
+        new_weights = learner.apply(weights, link_matrix, firing_prev, firing_curr)
+        assert new_weights is not None
