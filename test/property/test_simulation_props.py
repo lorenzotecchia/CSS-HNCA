@@ -27,6 +27,7 @@ def create_simulation(
     forgetting_rate: float,
     initial_firing_fraction: float,
     seed: int,
+    excitatory_fraction: float = 1.0,
 ) -> Simulation:
     """Helper to create a simulation with given parameters."""
     network = Network.create_random(
@@ -35,6 +36,7 @@ def create_simulation(
         radius=5.0,
         initial_weight=0.1,
         seed=seed,
+        excitatory_fraction=excitatory_fraction,
     )
     state = NeuronState.create(
         n_neurons=n_neurons,

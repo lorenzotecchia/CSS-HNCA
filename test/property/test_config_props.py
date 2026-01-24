@@ -56,6 +56,9 @@ def valid_network_config(draw, n_neurons_strategy=None):
     weight_min = draw(valid_weight)
     weight_max = draw(st.floats(min_value=weight_min, max_value=1.0, allow_nan=False, allow_infinity=False))
     initial_weight = draw(st.floats(min_value=weight_min, max_value=weight_max, allow_nan=False, allow_infinity=False))
+    excitatory_fraction = draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
+    weight_min_inh = draw(st.floats(min_value=-1.0, max_value=0.0, allow_nan=False, allow_infinity=False))
+    weight_max_inh = draw(st.floats(min_value=weight_min_inh, max_value=0.0, allow_nan=False, allow_infinity=False))
 
     return NetworkConfig(
         n_neurons=draw(n_neurons_strategy),
@@ -67,6 +70,9 @@ def valid_network_config(draw, n_neurons_strategy=None):
         initial_firing_fraction=draw(valid_fraction),
         leak_rate=draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)),
         reset_potential=draw(st.floats(min_value=0.0, max_value=2.0, allow_nan=False, allow_infinity=False)),
+        excitatory_fraction=excitatory_fraction,
+        weight_min_inh=weight_min_inh,
+        weight_max_inh=weight_max_inh,
     )
 
 
@@ -76,6 +82,9 @@ def small_network_config(draw):
     weight_min = draw(valid_weight)
     weight_max = draw(st.floats(min_value=weight_min, max_value=1.0, allow_nan=False, allow_infinity=False))
     initial_weight = draw(st.floats(min_value=weight_min, max_value=weight_max, allow_nan=False, allow_infinity=False))
+    excitatory_fraction = draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
+    weight_min_inh = draw(st.floats(min_value=-1.0, max_value=0.0, allow_nan=False, allow_infinity=False))
+    weight_max_inh = draw(st.floats(min_value=weight_min_inh, max_value=0.0, allow_nan=False, allow_infinity=False))
 
     return NetworkConfig(
         n_neurons=draw(small_n_neurons),
@@ -87,6 +96,9 @@ def small_network_config(draw):
         initial_firing_fraction=draw(valid_fraction),
         leak_rate=draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)),
         reset_potential=draw(st.floats(min_value=0.0, max_value=2.0, allow_nan=False, allow_infinity=False)),
+        excitatory_fraction=excitatory_fraction,
+        weight_min_inh=weight_min_inh,
+        weight_max_inh=weight_max_inh,
     )
 
 

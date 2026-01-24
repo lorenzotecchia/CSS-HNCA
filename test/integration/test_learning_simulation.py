@@ -262,6 +262,7 @@ class TestWeightBoundsInSimulation:
             radius=10.0,
             initial_weight=0.1,  # Start low
             seed=42,
+            excitatory_fraction=1.0,  # All excitatory neurons (weights >= 0)
         )
         state = NeuronState.create(
             n_neurons=10,
