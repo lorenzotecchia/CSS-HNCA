@@ -139,3 +139,31 @@ class NeuronState:
         # Update stored arrays (convert to numpy for storage)
         self.membrane_potential = backend.to_numpy(potential)
         self.firing = backend.to_numpy(firing)
+
+    def reinitialize_firing(
+        self, firing_fraction: float, seed: int | None = None
+    ) -> None:
+        """Reinitialize firing state with a random fraction of neurons firing.
+
+        Resets membrane potential and firing states while preserving threshold
+        and other parameters.
+
+        Args:
+            firing_fraction: Fraction of neurons to set as firing (0 to 1)
+            seed: Random seed for reproducibility
+        """
+        backend = self.backend
+        n_neurons = len(self.firing)
+
+        # Create new random firing state
+        firing = backend.random_bool(firing_fraction, (n_neurons,), seed)
+
+        # Reset membrane potential: threshold for firing, 0 for non-firing
+        zeros = backend.zeros((n_neurons,), dtype=np.float64)
+        threshold_arr = zeros + self.threshold
+        membrane_potential = backend.where(firing, threshold_arr, zeros)
+
+        # Update state
+        self.firing_prev = backend.zeros((n_neurons,), dtype=np.bool_)
+        self.firing = backend.to_numpy(firing)
+        self.membrane_potential = backend.to_numpy(membrane_potential)

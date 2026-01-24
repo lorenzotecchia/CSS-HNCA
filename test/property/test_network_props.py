@@ -236,7 +236,7 @@ class TestNetworkWeightMatrixProperties:
     def test_weights_initialized_where_link(
         self, n_neurons, box_size, radius, initial_weight, seed
     ):
-        """Weights must equal initial_weight where link exists."""
+        """Weights must equal ±initial_weight where link exists."""
         network = Network.create_random(
             n_neurons=n_neurons,
             box_size=box_size,
@@ -245,10 +245,10 @@ class TestNetworkWeightMatrixProperties:
             seed=seed,
         )
 
-        # Where link_matrix is True, weight_matrix should be initial_weight
+        # Where link_matrix is True, weight_matrix should be ±initial_weight
         if np.any(network.link_matrix):
             linked_weights = network.weight_matrix[network.link_matrix]
-            assert np.allclose(linked_weights, initial_weight)
+            assert np.allclose(np.abs(linked_weights), initial_weight)
 
 
 class TestNetworkReproducibilityProperties:

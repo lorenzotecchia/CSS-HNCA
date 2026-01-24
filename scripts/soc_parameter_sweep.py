@@ -20,12 +20,14 @@ import numpy as np
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.config.loader import load_config
 from src.core.backend import get_backend
 from src.core.network import Network
 from src.core.neuron_state import NeuronState
 from src.core.simulation import Simulation
 from src.events.avalanche import AvalancheDetector
 from src.learning.hebbian import HebbianLearner
+from src.visualization.avalanche_view import AvalancheAnalyticsView
 
 
 @dataclass
@@ -89,9 +91,9 @@ def compute_power_law_slope(sizes: list[int]) -> float:
     sum_x = np.sum(log_x)
     sum_y = np.sum(log_y)
     sum_xy = np.sum(log_x * log_y)
-    sum_x2 = np.sum(log_x ** 2)
+    sum_x2 = np.sum(log_x**2)
 
-    denom = n * sum_x2 - sum_x ** 2
+    denom = n * sum_x2 - sum_x**2
     if abs(denom) < 1e-10:
         return 0.0
 
@@ -105,7 +107,8 @@ def run_single_sweep(
     decay_alpha: float,
     oja_alpha: float,
     threshold: float,
-    n_steps: int = 2000,
+    view: AvalancheAnalyticsView,
+    target_avalanches: int = 100,
     seed: int = 42,
 ) -> SweepResult:
     """Run a single simulation with given parameters.
@@ -116,7 +119,8 @@ def run_single_sweep(
         decay_alpha: Baseline weight decay
         oja_alpha: Oja normalization strength
         threshold: Firing threshold
-        n_steps: Number of simulation steps
+        view: Shared visualization view to reuse
+        target_avalanches: Number of avalanches to simulate,
         seed: Random seed
 
     Returns:
@@ -124,6 +128,8 @@ def run_single_sweep(
     """
     # Get backend - will use JAX if available, otherwise NumPy
     backend = get_backend(prefer_gpu=True)
+
+    config = load_config(Path("config/default.toml"))
 
     # Fixed parameters (from default config)
     n_neurons = 350
@@ -169,7 +175,7 @@ def run_single_sweep(
     )
 
     # Create simulation with backend
-    sim = Simulation(
+    simulation = Simulation(
         network=network,
         state=state,
         learning_rate=learning_rate,
@@ -184,15 +190,39 @@ def run_single_sweep(
         quiet_threshold=0.05,  # 5% of neurons = "quiet"
     )
 
+    # Reset the shared view with new detector
+    view.detector = detector
+    view.target_avalanches = target_avalanches
+    view._time_steps = []
+    view._firing_counts = []
+    view._nonfiring_counts = []
+    view._branching_ratios = []
+    view._last_update_step = 0
+
     # Run simulation and collect metrics
     activity_history = []
-    sim.start()
+    simulation.start()
 
-    for _ in range(n_steps):
-        sim.step()
-        firing_count = sim.firing_count
-        detector.record_step(sim.time_step, firing_count)
-        activity_history.append(firing_count / n_neurons)
+    restart_count = 0
+    try:
+        while not view.should_stop():
+            simulation.step()
+            detector.record_step(simulation.time_step, simulation.firing_count)
+            view.update(
+                simulation.time_step,
+                simulation.firing_count,
+                simulation.network.n_neurons,
+            )
+
+            # When all neurons stop firing, reinitialize with random fraction
+            if simulation.firing_count == 0:
+                restart_count += 1
+                simulation.state.reinitialize_firing(
+                    firing_fraction=config.network.initial_firing_fraction,
+                    seed=config.seed + restart_count,
+                )
+    except KeyboardInterrupt:
+        print("\nInterrupted by user")
 
     # Finalize avalanche detection
     detector.finalize()
@@ -217,7 +247,7 @@ def run_single_sweep(
         power_law_slope=power_law_slope,
         avg_activity=avg_activity,
         activity_std=activity_std,
-        final_avg_weight=sim.average_weight,
+        final_avg_weight=simulation.average_weight,
     )
 
 
@@ -241,7 +271,17 @@ def main() -> None:
     print(f"Running {total} parameter combinations...")
 
     results: list[SweepResult] = []
+    all_avalanches: list[tuple[float, float, float, float, float, int, int]] = []
     count = 0
+
+    # Create a single shared view
+    dummy_detector = AvalancheDetector(n_neurons=350, quiet_threshold=0.05)
+    view = AvalancheAnalyticsView(
+        detector=dummy_detector,
+        target_avalanches=100,
+        update_interval=10,
+    )
+    view.initialize()
 
     for leak, reset, decay, oja, thresh in product(
         leak_rates, reset_potentials, decay_alphas, oja_alphas, thresholds
@@ -260,9 +300,14 @@ def main() -> None:
                 decay_alpha=decay,
                 oja_alpha=oja,
                 threshold=thresh,
-                n_steps=2000,
+                view=view,
             )
             results.append(result)
+
+            # Collect avalanche data with parameters
+            for a in view.detector.avalanches:
+                all_avalanches.append((leak, reset, decay, oja, thresh, a.size, a.duration))
+
             print(
                 f"avalanches={result.n_avalanches}, "
                 f"BR={result.branching_ratio:.3f}, "
@@ -271,41 +316,61 @@ def main() -> None:
         except Exception as e:
             print(f"ERROR: {e}")
 
+    # Close the shared view
+    view.close()
+
     # Save results to CSV
     output_path = Path("output/soc_sweep_results.csv")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow([
-            "leak_rate",
-            "reset_potential",
-            "decay_alpha",
-            "oja_alpha",
-            "threshold",
-            "n_avalanches",
-            "branching_ratio",
-            "power_law_slope",
-            "avg_activity",
-            "activity_std",
-            "final_avg_weight",
-        ])
+        writer.writerow(
+            [
+                "leak_rate",
+                "reset_potential",
+                "decay_alpha",
+                "oja_alpha",
+                "threshold",
+                "n_avalanches",
+                "branching_ratio",
+                "power_law_slope",
+                "avg_activity",
+                "activity_std",
+                "final_avg_weight",
+            ]
+        )
         for r in results:
-            writer.writerow([
-                r.leak_rate,
-                r.reset_potential,
-                r.decay_alpha,
-                r.oja_alpha,
-                r.threshold,
-                r.n_avalanches,
-                f"{r.branching_ratio:.4f}",
-                f"{r.power_law_slope:.4f}",
-                f"{r.avg_activity:.4f}",
-                f"{r.activity_std:.4f}",
-                f"{r.final_avg_weight:.4f}",
-            ])
+            writer.writerow(
+                [
+                    r.leak_rate,
+                    r.reset_potential,
+                    r.decay_alpha,
+                    r.oja_alpha,
+                    r.threshold,
+                    r.n_avalanches,
+                    f"{r.branching_ratio:.4f}",
+                    f"{r.power_law_slope:.4f}",
+                    f"{r.avg_activity:.4f}",
+                    f"{r.activity_std:.4f}",
+                    f"{r.final_avg_weight:.4f}",
+                ]
+            )
 
     print(f"\nResults saved to: {output_path}")
+
+    # Save all avalanche data to single CSV
+    avalanche_path = Path("output/soc_sweep_avalanches.csv")
+    with open(avalanche_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            ["leak_rate", "reset_potential", "decay_alpha", "oja_alpha", "threshold", "size", "duration"]
+        )
+        for row in all_avalanches:
+            writer.writerow(row)
+
+    print(f"Avalanche data saved to: {avalanche_path}")
+    print(f"Total avalanches collected: {len(all_avalanches)}")
 
     # Find best candidates (closest to target metrics)
     print("\n=== TOP CANDIDATES (closest to BR=1.0 and slope=-1.5) ===")

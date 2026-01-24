@@ -862,11 +862,748 @@ git commit -m "docs: add GPU acceleration instructions"
 
 ---
 
+### Phase 13: Excitatory/Inhibitory Neurons
+**Goal**: Differentiate neurons into excitatory (positive weights) and inhibitory (negative weights) types with configurable fractions and separate weight bounds.
+
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+
+**Status**: Planned
+
+**Architecture**: 
+- Neurons assigned types at network creation based on `excitatory_fraction` (default 80%)
+- Excitatory neurons have positive outgoing weights, inhibitory have negative
+- HebbianLearner enforces separate weight bounds per type during learning
+- Weight signs preserved: excitatory always positive, inhibitory always negative
+
+**Tech Stack**: Python, NumPy, pytest, hypothesis
+
+---
+
+#### Task 13.1: Add Config Parameters
+
+**Files:**
+- Modify: `src/config/loader.py`
+- Modify: `config/default.toml`
+- Test: `test/unit/test_config_loader.py`
+
+**Step 1: Write the failing test**
+
+```python
+# Add to test/unit/test_config_loader.py
+
+def test_excitatory_fraction_parsed():
+    """Test excitatory_fraction is parsed from config."""
+    config = load_config(Path("config/default.toml"))
+    assert hasattr(config.network, "excitatory_fraction")
+    assert 0 <= config.network.excitatory_fraction <= 1
+
+
+def test_inhibitory_weight_bounds_parsed():
+    """Test inhibitory weight bounds are parsed from config."""
+    config = load_config(Path("config/default.toml"))
+    assert hasattr(config.network, "weight_min_inh")
+    assert hasattr(config.network, "weight_max_inh")
+    assert config.network.weight_min_inh <= config.network.weight_max_inh
+
+
+def test_excitatory_fraction_validation():
+    """Test excitatory_fraction must be in [0, 1]."""
+    # This would need a custom invalid config - skip for now
+    pass
+```
+
+**Step 2: Run test to verify it fails**
+
+```bash
+pytest test/unit/test_config_loader.py::test_excitatory_fraction_parsed -v
+```
+
+Expected: FAIL with `AttributeError: 'NetworkConfig' object has no attribute 'excitatory_fraction'`
+
+**Step 3: Add fields to NetworkConfig**
+
+```python
+# In src/config/loader.py, update NetworkConfig dataclass:
+
+@dataclass(frozen=True)
+class NetworkConfig:
+    # ... existing fields ...
+    excitatory_fraction: float  # Fraction of neurons that are excitatory
+    weight_min_inh: float       # Minimum weight for inhibitory neurons
+    weight_max_inh: float       # Maximum weight for inhibitory neurons
+```
+
+**Step 4: Add validation in _validate_network_config**
+
+```python
+# Add to _validate_network_config():
+
+excitatory_fraction = data.get("excitatory_fraction", 0.8)
+if not 0 <= excitatory_fraction <= 1:
+    raise ConfigValidationError("excitatory_fraction must be in [0, 1]")
+
+weight_min_inh = data.get("weight_min_inh", -0.3)
+weight_max_inh = data.get("weight_max_inh", 0.0)
+if weight_min_inh > weight_max_inh:
+    raise ConfigValidationError("weight_min_inh must be <= weight_max_inh")
+```
+
+**Step 5: Update _parse_network_config**
+
+```python
+# Add to return statement in _parse_network_config():
+
+excitatory_fraction=float(data.get("excitatory_fraction", 0.8)),
+weight_min_inh=float(data.get("weight_min_inh", -0.3)),
+weight_max_inh=float(data.get("weight_max_inh", 0.0)),
+```
+
+**Step 6: Add to config/default.toml**
+
+```toml
+# Add to [network] section:
+excitatory_fraction = 0.8      # 80% excitatory, 20% inhibitory
+weight_min_inh = -0.3          # inhibitory weight bounds
+weight_max_inh = 0.0
+```
+
+**Step 7: Run tests to verify they pass**
+
+```bash
+pytest test/unit/test_config_loader.py -v
+```
+
+Expected: PASS
+
+**Step 8: Commit**
+
+```bash
+git add src/config/loader.py config/default.toml test/unit/test_config_loader.py
+git commit -m "feat(config): add excitatory/inhibitory neuron config parameters"
+```
+
+---
+
+#### Task 13.2: Add neuron_types to Network
+
+**Files:**
+- Modify: `src/core/network.py`
+- Test: `test/unit/test_network.py`
+
+**Step 1: Write failing tests**
+
+```python
+# Add to test/unit/test_network.py
+
+def test_network_has_neuron_types():
+    """Network should have neuron_types array."""
+    network = Network.create_random(
+        n_neurons=100,
+        box_size=(10.0, 10.0, 10.0),
+        radius=2.0,
+        initial_weight=0.1,
+        seed=42,
+    )
+    assert hasattr(network, "neuron_types")
+    assert network.neuron_types.shape == (100,)
+    assert network.neuron_types.dtype == bool
+
+
+def test_excitatory_fraction_respected():
+    """Approximately excitatory_fraction of neurons should be excitatory."""
+    network = Network.create_random(
+        n_neurons=1000,
+        box_size=(10.0, 10.0, 10.0),
+        radius=2.0,
+        initial_weight=0.1,
+        excitatory_fraction=0.8,
+        seed=42,
+    )
+    actual_fraction = np.mean(network.neuron_types)
+    assert 0.75 < actual_fraction < 0.85  # Allow some variance
+
+
+def test_excitatory_neurons_have_positive_weights():
+    """Excitatory neurons should have positive outgoing weights."""
+    network = Network.create_random(
+        n_neurons=100,
+        box_size=(10.0, 10.0, 10.0),
+        radius=2.0,
+        initial_weight=0.1,
+        excitatory_fraction=0.5,
+        seed=42,
+    )
+    for i in range(network.n_neurons):
+        if network.neuron_types[i]:  # Excitatory
+            row_weights = network.weight_matrix[i, network.link_matrix[i]]
+            if len(row_weights) > 0:
+                assert np.all(row_weights >= 0), f"Excitatory neuron {i} has negative weights"
+
+
+def test_inhibitory_neurons_have_negative_weights():
+    """Inhibitory neurons should have negative outgoing weights."""
+    network = Network.create_random(
+        n_neurons=100,
+        box_size=(10.0, 10.0, 10.0),
+        radius=2.0,
+        initial_weight=0.1,
+        excitatory_fraction=0.5,
+        seed=42,
+    )
+    for i in range(network.n_neurons):
+        if not network.neuron_types[i]:  # Inhibitory
+            row_weights = network.weight_matrix[i, network.link_matrix[i]]
+            if len(row_weights) > 0:
+                assert np.all(row_weights <= 0), f"Inhibitory neuron {i} has positive weights"
+```
+
+**Step 2: Run tests to verify they fail**
+
+```bash
+pytest test/unit/test_network.py::test_network_has_neuron_types -v
+```
+
+Expected: FAIL with `AttributeError`
+
+**Step 3: Add neuron_types to Network dataclass**
+
+```python
+# In src/core/network.py, update Network dataclass:
+
+@dataclass
+class Network:
+    positions: ndarray
+    link_matrix: ndarray
+    weight_matrix: ndarray
+    neuron_types: ndarray  # True = excitatory, False = inhibitory
+    n_neurons: int
+    radius: float
+    box_size: tuple[float, float, float]
+```
+
+**Step 4: Update create_random signature**
+
+```python
+@classmethod
+def create_random(
+    cls,
+    n_neurons: int,
+    box_size: tuple[float, float, float],
+    radius: float,
+    initial_weight: float,
+    excitatory_fraction: float = 0.8,  # NEW
+    seed: int | None = None,
+    backend: ArrayBackend | None = None,
+) -> "Network":
+```
+
+**Step 5: Implement neuron type assignment and signed weights**
+
+```python
+# After computing positions, add:
+
+# Assign neuron types: True = excitatory, False = inhibitory
+rng = np.random.default_rng(seed)
+neuron_types = rng.random(n_neurons) < excitatory_fraction
+
+# ... existing distance/link_matrix code ...
+
+# Weight matrix: sign depends on presynaptic neuron type
+weight_signs = np.where(neuron_types, 1.0, -1.0)  # (N,)
+weight_matrix = np.where(link_matrix, initial_weight * weight_signs[:, np.newaxis], 0.0)
+
+# Update return:
+return cls(
+    positions=positions,
+    link_matrix=link_matrix,
+    weight_matrix=weight_matrix,
+    neuron_types=neuron_types,
+    n_neurons=n_neurons,
+    radius=radius,
+    box_size=box_size,
+)
+```
+
+**Step 6: Run tests to verify they pass**
+
+```bash
+pytest test/unit/test_network.py -v
+```
+
+Expected: PASS (may need to fix other tests that create Network without neuron_types)
+
+**Step 7: Fix any broken tests**
+
+Other tests may need to add `neuron_types` when creating Network manually. Add:
+```python
+neuron_types=np.ones(n_neurons, dtype=bool)  # All excitatory for backward compat
+```
+
+**Step 8: Commit**
+
+```bash
+git add src/core/network.py test/unit/test_network.py
+git commit -m "feat(network): add neuron_types for excitatory/inhibitory differentiation"
+```
+
+---
+
+#### Task 13.3: HebbianLearner Per-Type Weight Bounds
+
+**Files:**
+- Modify: `src/learning/hebbian.py`
+- Test: `test/unit/test_hebbian.py`
+
+**Step 1: Write failing tests**
+
+```python
+# Add to test/unit/test_hebbian.py
+
+def test_learner_accepts_inhibitory_bounds():
+    """HebbianLearner should accept weight_min_inh and weight_max_inh."""
+    learner = HebbianLearner(
+        learning_rate=0.1,
+        forgetting_rate=0.05,
+        weight_min=0.0,
+        weight_max=0.3,
+        weight_min_inh=-0.3,
+        weight_max_inh=0.0,
+    )
+    assert learner.weight_min_inh == -0.3
+    assert learner.weight_max_inh == 0.0
+
+
+def test_apply_enforces_excitatory_bounds():
+    """Excitatory neurons should be clamped to [weight_min, weight_max]."""
+    learner = HebbianLearner(
+        learning_rate=0.5,
+        forgetting_rate=0.0,
+        weight_min=0.0,
+        weight_max=0.2,
+        weight_min_inh=-0.2,
+        weight_max_inh=0.0,
+    )
+    
+    weights = np.array([[0.0, 0.15], [0.0, 0.0]])
+    link_matrix = np.array([[False, True], [False, False]])
+    neuron_types = np.array([True, True])  # Both excitatory
+    firing_prev = np.array([True, False])
+    firing_curr = np.array([False, True])
+    
+    new_weights = learner.apply(weights, link_matrix, firing_prev, firing_curr, neuron_types)
+    
+    # LTP would push weight above 0.2, should be clamped
+    assert new_weights[0, 1] <= 0.2
+
+
+def test_apply_enforces_inhibitory_bounds():
+    """Inhibitory neurons should be clamped to [weight_min_inh, weight_max_inh]."""
+    learner = HebbianLearner(
+        learning_rate=0.5,
+        forgetting_rate=0.0,
+        weight_min=0.0,
+        weight_max=0.2,
+        weight_min_inh=-0.2,
+        weight_max_inh=0.0,
+    )
+    
+    weights = np.array([[0.0, -0.1], [0.0, 0.0]])
+    link_matrix = np.array([[False, True], [False, False]])
+    neuron_types = np.array([False, True])  # First inhibitory
+    firing_prev = np.array([True, False])
+    firing_curr = np.array([False, True])
+    
+    new_weights = learner.apply(weights, link_matrix, firing_prev, firing_curr, neuron_types)
+    
+    # Inhibitory weights should stay in [-0.2, 0.0]
+    assert -0.2 <= new_weights[0, 1] <= 0.0
+```
+
+**Step 2: Run tests to verify they fail**
+
+```bash
+pytest test/unit/test_hebbian.py::test_learner_accepts_inhibitory_bounds -v
+```
+
+Expected: FAIL with `TypeError: unexpected keyword argument 'weight_min_inh'`
+
+**Step 3: Add inhibitory bounds to HebbianLearner**
+
+```python
+# In src/learning/hebbian.py, update HebbianLearner:
+
+@dataclass
+class HebbianLearner:
+    learning_rate: float
+    forgetting_rate: float
+    weight_min: float
+    weight_max: float
+    decay_alpha: float = 0.0
+    oja_alpha: float = 0.0
+    weight_min_inh: float = -0.3  # NEW: inhibitory min
+    weight_max_inh: float = 0.0   # NEW: inhibitory max
+    backend: ArrayBackend = field(default_factory=get_backend)
+```
+
+**Step 4: Update apply() signature**
+
+```python
+def apply(
+    self,
+    weights: ndarray,
+    link_matrix: ndarray,
+    firing_prev: ndarray,
+    firing_current: ndarray,
+    neuron_types: ndarray | None = None,  # NEW: optional for backward compat
+) -> ndarray:
+```
+
+**Step 5: Implement per-type bounds in apply()**
+
+```python
+# Replace the simple clip at the end with:
+
+# Enforce per-type bounds
+if neuron_types is not None:
+    # Create per-row min/max based on neuron type
+    min_bounds = np.where(neuron_types, self.weight_min, self.weight_min_inh)
+    max_bounds = np.where(neuron_types, self.weight_max, self.weight_max_inh)
+    
+    # Clip each row according to its neuron type
+    for i in range(new_weights.shape[0]):
+        new_weights[i] = np.clip(new_weights[i], min_bounds[i], max_bounds[i])
+else:
+    # Backward compatibility: all excitatory
+    new_weights = np.clip(new_weights, self.weight_min, self.weight_max)
+```
+
+**Step 6: Run tests to verify they pass**
+
+```bash
+pytest test/unit/test_hebbian.py -v
+```
+
+Expected: PASS
+
+**Step 7: Commit**
+
+```bash
+git add src/learning/hebbian.py test/unit/test_hebbian.py
+git commit -m "feat(hebbian): enforce per-type weight bounds for excitatory/inhibitory neurons"
+```
+
+---
+
+#### Task 13.4: Wire neuron_types Through Simulation
+
+**Files:**
+- Modify: `src/core/simulation.py`
+- Test: `test/unit/test_simulation.py`
+
+**Step 1: Write failing test**
+
+```python
+# Add to test/unit/test_simulation.py
+
+def test_simulation_passes_neuron_types_to_learner():
+    """Simulation should pass network.neuron_types to learner.apply()."""
+    from unittest.mock import MagicMock
+    
+    network = Network.create_random(
+        n_neurons=10,
+        box_size=(5.0, 5.0, 5.0),
+        radius=2.0,
+        initial_weight=0.1,
+        excitatory_fraction=0.5,
+        seed=42,
+    )
+    state = NeuronState.create(n_neurons=10, threshold=0.5, seed=42)
+    learner = MagicMock()
+    learner.apply.return_value = network.weight_matrix.copy()
+    
+    sim = Simulation(
+        network=network,
+        state=state,
+        learning_rate=0.1,
+        forgetting_rate=0.05,
+        learner=learner,
+    )
+    sim.start()
+    sim.step()
+    
+    # Verify neuron_types was passed
+    call_kwargs = learner.apply.call_args.kwargs
+    assert "neuron_types" in call_kwargs or len(learner.apply.call_args.args) >= 5
+```
+
+**Step 2: Run test to verify it fails**
+
+```bash
+pytest test/unit/test_simulation.py::test_simulation_passes_neuron_types_to_learner -v
+```
+
+Expected: FAIL (neuron_types not passed)
+
+**Step 3: Update Simulation.step() to pass neuron_types**
+
+```python
+# In src/core/simulation.py, update step() method:
+
+if self.learner is not None:
+    new_weights = self.learner.apply(
+        weights=self.network.weight_matrix,
+        link_matrix=self.network.link_matrix,
+        firing_prev=firing_prev,
+        firing_current=self.state.firing,
+        neuron_types=getattr(self.network, 'neuron_types', None),  # NEW
+    )
+    self.network.weight_matrix[:] = new_weights
+```
+
+**Step 4: Run tests to verify they pass**
+
+```bash
+pytest test/unit/test_simulation.py -v
+```
+
+Expected: PASS
+
+**Step 5: Commit**
+
+```bash
+git add src/core/simulation.py test/unit/test_simulation.py
+git commit -m "feat(simulation): pass neuron_types to HebbianLearner"
+```
+
+---
+
+#### Task 13.5: Wire Config to main.py
+
+**Files:**
+- Modify: `main.py`
+
+**Step 1: Update Network.create_random call**
+
+```python
+# In main.py, update network creation:
+
+network = Network.create_random(
+    n_neurons=config.network.n_neurons,
+    box_size=config.network.box_size,
+    radius=config.network.radius,
+    initial_weight=config.network.initial_weight,
+    excitatory_fraction=config.network.excitatory_fraction,  # NEW
+    seed=config.seed,
+)
+```
+
+**Step 2: Update HebbianLearner creation**
+
+```python
+# In main.py, update learner creation:
+
+learner = HebbianLearner(
+    learning_rate=config.learning.learning_rate,
+    forgetting_rate=config.learning.forgetting_rate,
+    weight_min=config.network.weight_min,
+    weight_max=config.network.weight_max,
+    weight_min_inh=config.network.weight_min_inh,  # NEW
+    weight_max_inh=config.network.weight_max_inh,  # NEW
+    decay_alpha=config.learning.decay_alpha,
+    oja_alpha=config.learning.oja_alpha,
+)
+```
+
+**Step 3: Run simulation to verify**
+
+```bash
+python main.py 2>&1 | head -20
+```
+
+Expected: Simulation runs without errors
+
+**Step 4: Commit**
+
+```bash
+git add main.py
+git commit -m "feat: wire excitatory/inhibitory config to simulation"
+```
+
+---
+
+#### Task 13.6: Add Property Tests
+
+**Files:**
+- Modify: `test/property/test_network_props.py`
+- Modify: `test/property/test_hebbian_props.py`
+
+**Step 1: Add network property tests**
+
+```python
+# Add to test/property/test_network_props.py
+
+from hypothesis import given, strategies as st
+
+@given(
+    n_neurons=st.integers(min_value=10, max_value=100),
+    excitatory_fraction=st.floats(min_value=0.0, max_value=1.0),
+    seed=st.integers(min_value=0, max_value=10000),
+)
+def test_neuron_types_length_matches_n_neurons(n_neurons, excitatory_fraction, seed):
+    """neuron_types array should have length n_neurons."""
+    network = Network.create_random(
+        n_neurons=n_neurons,
+        box_size=(10.0, 10.0, 10.0),
+        radius=2.0,
+        initial_weight=0.1,
+        excitatory_fraction=excitatory_fraction,
+        seed=seed,
+    )
+    assert len(network.neuron_types) == n_neurons
+
+
+@given(
+    seed=st.integers(min_value=0, max_value=10000),
+)
+def test_weight_signs_match_neuron_types(seed):
+    """Excitatory neurons should have non-negative weights, inhibitory non-positive."""
+    network = Network.create_random(
+        n_neurons=50,
+        box_size=(10.0, 10.0, 10.0),
+        radius=3.0,
+        initial_weight=0.1,
+        excitatory_fraction=0.5,
+        seed=seed,
+    )
+    for i in range(network.n_neurons):
+        connected = network.link_matrix[i]
+        if np.any(connected):
+            weights = network.weight_matrix[i, connected]
+            if network.neuron_types[i]:  # Excitatory
+                assert np.all(weights >= 0)
+            else:  # Inhibitory
+                assert np.all(weights <= 0)
+```
+
+**Step 2: Add hebbian property test**
+
+```python
+# Add to test/property/test_hebbian_props.py
+
+@given(
+    seed=st.integers(min_value=0, max_value=10000),
+)
+def test_weight_bounds_preserved_after_learning(seed):
+    """Weights should stay within type-specific bounds after learning."""
+    rng = np.random.default_rng(seed)
+    n = 20
+    
+    neuron_types = rng.random(n) < 0.5
+    weights = np.where(neuron_types[:, None], 0.1, -0.1) * rng.random((n, n))
+    link_matrix = rng.random((n, n)) < 0.3
+    np.fill_diagonal(link_matrix, False)
+    
+    learner = HebbianLearner(
+        learning_rate=0.1,
+        forgetting_rate=0.1,
+        weight_min=0.0,
+        weight_max=0.3,
+        weight_min_inh=-0.3,
+        weight_max_inh=0.0,
+    )
+    
+    firing_prev = rng.random(n) < 0.3
+    firing_curr = rng.random(n) < 0.3
+    
+    new_weights = learner.apply(weights, link_matrix, firing_prev, firing_curr, neuron_types)
+    
+    for i in range(n):
+        if neuron_types[i]:
+            assert np.all(new_weights[i] >= 0.0)
+            assert np.all(new_weights[i] <= 0.3)
+        else:
+            assert np.all(new_weights[i] >= -0.3)
+            assert np.all(new_weights[i] <= 0.0)
+```
+
+**Step 3: Run property tests**
+
+```bash
+pytest test/property/test_network_props.py test/property/test_hebbian_props.py -v
+```
+
+Expected: PASS
+
+**Step 4: Commit**
+
+```bash
+git add test/property/test_network_props.py test/property/test_hebbian_props.py
+git commit -m "test: add property tests for excitatory/inhibitory neurons"
+```
+
+---
+
+#### Task 13.7: Final Verification
+
+**Step 1: Run all tests**
+
+```bash
+pytest --quiet
+```
+
+Expected: All tests pass
+
+**Step 2: Run simulation and verify E/I dynamics**
+
+```bash
+python -c "
+from pathlib import Path
+from src.config.loader import load_config
+from src.core.network import Network
+import numpy as np
+
+config = load_config(Path('config/default.toml'))
+network = Network.create_random(
+    n_neurons=config.network.n_neurons,
+    box_size=config.network.box_size,
+    radius=config.network.radius,
+    initial_weight=config.network.initial_weight,
+    excitatory_fraction=config.network.excitatory_fraction,
+    seed=config.seed,
+)
+
+n_exc = np.sum(network.neuron_types)
+n_inh = network.n_neurons - n_exc
+print(f'Excitatory: {n_exc} ({n_exc/network.n_neurons:.1%})')
+print(f'Inhibitory: {n_inh} ({n_inh/network.n_neurons:.1%})')
+
+exc_weights = network.weight_matrix[network.neuron_types]
+inh_weights = network.weight_matrix[~network.neuron_types]
+print(f'Excitatory weights: [{exc_weights[exc_weights!=0].min():.4f}, {exc_weights[exc_weights!=0].max():.4f}]')
+print(f'Inhibitory weights: [{inh_weights[inh_weights!=0].min():.4f}, {inh_weights[inh_weights!=0].max():.4f}]')
+"
+```
+
+Expected output showing ~80% excitatory with positive weights, ~20% inhibitory with negative weights
+
+**Step 3: Update memory/plan.md status**
+
+Mark Phase 13 as complete.
+
+**Step 4: Commit**
+
+```bash
+git add memory/plan.md
+git commit -m "docs: mark Phase 13 (excitatory/inhibitory neurons) complete"
+```
+
+---
+
 ## Open Questions (SOC Design)
 
 - [ ] What leak_rate and reset_potential values produce critical dynamics?
 - [ ] Should we add external input/stimulation to trigger avalanches?
-- [ ] Do we need inhibitory neurons for full SOC (currently all excitatory)?
+- [ ] Do we need inhibitory neurons for full SOC (currently all excitatory)? → **See Phase 13**
 
 ---
 

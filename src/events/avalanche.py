@@ -36,17 +36,22 @@ class AvalancheDetector:
     Attributes:
         n_neurons: Total number of neurons in network
         quiet_threshold: Fraction of neurons below which activity is "quiet"
+        burn_in: Number of initial avalanches to skip before recording
         avalanches: List of completed avalanches
     """
 
     n_neurons: int
     quiet_threshold: float
+    burn_in: int = 10
 
     # Computed from threshold
     quiet_count: int = field(init=False)
 
     # Completed avalanches
     avalanches: list[Avalanche] = field(default_factory=list, init=False)
+
+    # Count of skipped avalanches during burn-in
+    _skipped_count: int = field(default=0, init=False, repr=False)
 
     # State for tracking ongoing avalanche
     _in_avalanche: bool = field(default=False, init=False, repr=False)
@@ -101,6 +106,16 @@ class AvalancheDetector:
 
     def _close_avalanche(self) -> None:
         """Close the current avalanche and add to completed list."""
+        # Skip if still in burn-in period
+        if self._skipped_count < self.burn_in:
+            self._skipped_count += 1
+            self._in_avalanche = False
+            self._current_size = 0
+            self._current_duration = 0
+            self._current_peak = 0
+            self._firing_history = []
+            return
+
         avalanche = Avalanche(
             size=self._current_size,
             duration=self._current_duration,
@@ -112,7 +127,9 @@ class AvalancheDetector:
         # Accumulate branching ratios from this avalanche
         for i in range(len(self._firing_history) - 1):
             if self._firing_history[i] > 0:
-                self._all_ratios.append(self._firing_history[i + 1] / self._firing_history[i])
+                self._all_ratios.append(
+                    self._firing_history[i + 1] / self._firing_history[i]
+                )
 
         self._in_avalanche = False
         self._current_size = 0
