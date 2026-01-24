@@ -33,6 +33,9 @@ class TestNetworkConfig:
             initial_firing_fraction=0.1,
             leak_rate=0.1,
             reset_potential=1.0,
+            excitatory_fraction=0.8,
+            weight_min_inh=-0.3,
+            weight_max_inh=0.0,
         )
         assert config.n_neurons == 300
         assert config.box_size == (10.0, 10.0, 10.0)
@@ -43,6 +46,9 @@ class TestNetworkConfig:
         assert config.initial_firing_fraction == 0.1
         assert config.leak_rate == 0.1
         assert config.reset_potential == 1.0
+        assert config.excitatory_fraction == 0.8
+        assert config.weight_min_inh == -0.3
+        assert config.weight_max_inh == 0.0
 
     def test_network_config_is_frozen(self):
         """NetworkConfig should be immutable (frozen)."""
@@ -56,6 +62,9 @@ class TestNetworkConfig:
             initial_firing_fraction=0.1,
             leak_rate=0.1,
             reset_potential=1.0,
+            excitatory_fraction=0.8,
+            weight_min_inh=-0.3,
+            weight_max_inh=0.0,
         )
         with pytest.raises(AttributeError):
             config.n_neurons = 500
@@ -138,6 +147,9 @@ class TestSimulationConfig:
             initial_firing_fraction=0.1,
             leak_rate=0.1,
             reset_potential=1.0,
+            excitatory_fraction=0.8,
+            weight_min_inh=-0.3,
+            weight_max_inh=0.0,
         )
         learning = LearningConfig(
             threshold=0.5,
@@ -176,6 +188,9 @@ class TestSimulationConfig:
             initial_firing_fraction=0.1,
             leak_rate=0.1,
             reset_potential=1.0,
+            excitatory_fraction=0.8,
+            weight_min_inh=-0.3,
+            weight_max_inh=0.0,
         )
         learning = LearningConfig(
             threshold=0.5,
@@ -505,6 +520,96 @@ initial_firing_fraction = 0.1
 
 [learning]
 threshold = -0.5
+learning_rate = 0.01
+forgetting_rate = 0.005
+decay_alpha = 0.001
+
+[visualization]
+pygame_enabled = true
+matplotlib_enabled = true
+window_width = 800
+window_height = 600
+fps = 30
+"""
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".toml", delete=False
+        ) as f:
+            f.write(toml_content)
+            f.flush()
+            with pytest.raises(ConfigValidationError):
+                load_config(Path(f.name))
+
+
+class TestExcitatoryInhibitoryConfig:
+    """Tests for excitatory/inhibitory neuron configuration."""
+
+    def test_excitatory_fraction_parsed(self):
+        """Test excitatory_fraction is parsed from config."""
+        config = load_config(Path("config/default.toml"))
+        assert hasattr(config.network, "excitatory_fraction")
+        assert 0 <= config.network.excitatory_fraction <= 1
+
+    def test_inhibitory_weight_bounds_parsed(self):
+        """Test inhibitory weight bounds are parsed from config."""
+        config = load_config(Path("config/default.toml"))
+        assert hasattr(config.network, "weight_min_inh")
+        assert hasattr(config.network, "weight_max_inh")
+        assert config.network.weight_min_inh <= config.network.weight_max_inh
+
+    def test_excitatory_fraction_must_be_in_range(self):
+        """excitatory_fraction must be in [0, 1]."""
+        toml_content = """
+seed = 42
+
+[network]
+n_neurons = 300
+box_size = [10.0, 10.0, 10.0]
+radius = 2.5
+initial_weight = 0.1
+weight_min = 0.0
+weight_max = 1.0
+initial_firing_fraction = 0.1
+excitatory_fraction = 1.5
+
+[learning]
+threshold = 0.5
+learning_rate = 0.01
+forgetting_rate = 0.005
+decay_alpha = 0.001
+
+[visualization]
+pygame_enabled = true
+matplotlib_enabled = true
+window_width = 800
+window_height = 600
+fps = 30
+"""
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".toml", delete=False
+        ) as f:
+            f.write(toml_content)
+            f.flush()
+            with pytest.raises(ConfigValidationError):
+                load_config(Path(f.name))
+
+    def test_inhibitory_weight_min_must_be_lte_max(self):
+        """weight_min_inh must be <= weight_max_inh."""
+        toml_content = """
+seed = 42
+
+[network]
+n_neurons = 300
+box_size = [10.0, 10.0, 10.0]
+radius = 2.5
+initial_weight = 0.1
+weight_min = 0.0
+weight_max = 1.0
+initial_firing_fraction = 0.1
+weight_min_inh = 0.0
+weight_max_inh = -0.5
+
+[learning]
+threshold = 0.5
 learning_rate = 0.01
 forgetting_rate = 0.005
 decay_alpha = 0.001

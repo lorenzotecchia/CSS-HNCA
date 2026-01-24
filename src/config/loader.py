@@ -29,6 +29,9 @@ class NetworkConfig:
         initial_firing_fraction: Fraction of neurons firing at t=0
         leak_rate: LIF leak rate λ (potential decay fraction per step)
         reset_potential: Amount subtracted from potential after firing
+        excitatory_fraction: Fraction of neurons that are excitatory
+        weight_min_inh: Minimum weight for inhibitory neurons
+        weight_max_inh: Maximum weight for inhibitory neurons
     """
 
     n_neurons: int
@@ -40,6 +43,9 @@ class NetworkConfig:
     initial_firing_fraction: float
     leak_rate: float
     reset_potential: float
+    excitatory_fraction: float
+    weight_min_inh: float
+    weight_max_inh: float
 
 
 @dataclass(frozen=True)
@@ -126,6 +132,15 @@ def _validate_network_config(data: dict[str, Any]) -> None:
     if reset_potential < 0:
         raise ConfigValidationError("reset_potential must be >= 0")
 
+    excitatory_fraction = data.get("excitatory_fraction", 0.8)
+    if not 0 <= excitatory_fraction <= 1:
+        raise ConfigValidationError("excitatory_fraction must be in [0, 1]")
+
+    weight_min_inh = data.get("weight_min_inh", -0.3)
+    weight_max_inh = data.get("weight_max_inh", 0.0)
+    if weight_min_inh > weight_max_inh:
+        raise ConfigValidationError("weight_min_inh must be <= weight_max_inh")
+
 
 def _validate_learning_config(data: dict[str, Any]) -> None:
     """Validate learning configuration values."""
@@ -161,6 +176,9 @@ def _parse_network_config(data: dict[str, Any]) -> NetworkConfig:
         initial_firing_fraction=float(data["initial_firing_fraction"]),
         leak_rate=float(data.get("leak_rate", 0.0)),
         reset_potential=float(data.get("reset_potential", 0.0)),
+        excitatory_fraction=float(data.get("excitatory_fraction", 0.8)),
+        weight_min_inh=float(data.get("weight_min_inh", -0.3)),
+        weight_max_inh=float(data.get("weight_max_inh", 0.0)),
     )
 
 
