@@ -2,7 +2,7 @@
 
 Provides live visualization of avalanche statistics:
 - Firing/non-firing neurons over time
-- Branching ratio evolution
+- Weight distribution histogram
 - Size and duration distributions (normal and log-log)
 """
 
@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from numpy import ndarray
+
 
 if TYPE_CHECKING:
     from src.events.avalanche import AvalancheDetector
@@ -43,7 +45,7 @@ class AvalancheAnalyticsView:
     _time_steps: list[int] = field(default_factory=list, init=False, repr=False)
     _firing_counts: list[int] = field(default_factory=list, init=False, repr=False)
     _nonfiring_counts: list[int] = field(default_factory=list, init=False, repr=False)
-    _branching_ratios: list[float] = field(default_factory=list, init=False, repr=False)
+    _avg_weights: list[float] = field(default_factory=list, init=False, repr=False)
     _initialized: bool = field(default=False, init=False, repr=False)
     _last_update_step: int = field(default=0, init=False, repr=False)
 
@@ -57,7 +59,7 @@ class AvalancheAnalyticsView:
         self._fig, axes = plt.subplots(3, 2, figsize=(12, 10))
         self._axes = {
             "firing": axes[0, 0],
-            "branching": axes[0, 1],
+            "weight": axes[0, 1],
             "size_normal": axes[1, 0],
             "size_loglog": axes[1, 1],
             "duration_normal": axes[2, 0],
@@ -69,12 +71,19 @@ class AvalancheAnalyticsView:
 
         self._initialized = True
 
-    def update(self, time_step: int, firing_count: int, n_neurons: int) -> None:
+    def update(
+        self,
+        time_step: int,
+        firing_count: int,
+        n_neurons: int,
+        avg_weight: float,
+    ) -> None:
         """Update visualization with current simulation state.
 
         Args:
             time_step: Current simulation time step
             firing_count: Number of neurons currently firing
+            avg_weight: Average synaptic weight
             n_neurons: Total number of neurons
         """
         if not self._initialized:
@@ -84,14 +93,14 @@ class AvalancheAnalyticsView:
         self._time_steps.append(time_step)
         self._firing_counts.append(firing_count)
         self._nonfiring_counts.append(n_neurons - firing_count)
-        self._branching_ratios.append(self.detector.compute_branching_ratio())
+        self._avg_weights.append(avg_weight)
 
         # Trim history if needed
         if len(self._time_steps) > self.history_length:
             self._time_steps = self._time_steps[-self.history_length :]
             self._firing_counts = self._firing_counts[-self.history_length :]
             self._nonfiring_counts = self._nonfiring_counts[-self.history_length :]
-            self._branching_ratios = self._branching_ratios[-self.history_length :]
+            self._avg_weights = self._avg_weights[-self.history_length :]
 
         # Only redraw every update_interval steps
         if time_step - self._last_update_step < self.update_interval:
@@ -101,7 +110,7 @@ class AvalancheAnalyticsView:
 
         # Update all plots
         self._update_firing_plot(n_neurons)
-        self._update_branching_plot()
+        self._update_weight_plot()
         self._update_size_distribution()
         self._update_size_distribution_loglog()
         self._update_duration_distribution()
@@ -116,7 +125,12 @@ class AvalancheAnalyticsView:
         ax = self._axes["firing"]
         ax.clear()
         ax.fill_between(
-            self._time_steps, 0, self._firing_counts, alpha=0.7, label="Firing", color="red"
+            self._time_steps,
+            0,
+            self._firing_counts,
+            alpha=0.7,
+            label="Firing",
+            color="red",
         )
         ax.fill_between(
             self._time_steps,
@@ -133,16 +147,14 @@ class AvalancheAnalyticsView:
         ax.legend(loc="upper right")
         ax.grid(True, alpha=0.3)
 
-    def _update_branching_plot(self) -> None:
-        """Update branching ratio evolution plot."""
-        ax = self._axes["branching"]
+    def _update_weight_plot(self) -> None:
+        """Update average weight line plot."""
+        ax = self._axes["weight"]
         ax.clear()
-        ax.plot(self._time_steps, self._branching_ratios, "g-", linewidth=1.5)
-        ax.axhline(y=1.0, color="red", linestyle="--", alpha=0.7, label="Critical (BR=1)")
+        ax.plot(self._time_steps, self._avg_weights, "b-", linewidth=1.5)
         ax.set_xlabel("Time Step")
-        ax.set_ylabel("Branching Ratio")
-        ax.set_title(f"Branching Ratio (Avalanches: {len(self.detector.avalanches)}/{self.target_avalanches})")
-        ax.legend(loc="upper right")
+        ax.set_ylabel("Average Weight")
+        ax.set_title("Average Synaptic Weight Over Time")
         ax.grid(True, alpha=0.3)
 
     def _update_size_distribution(self) -> None:
@@ -170,7 +182,9 @@ class AvalancheAnalyticsView:
             sizes_arr = sizes_arr[sizes_arr > 0]
 
             if len(sizes_arr) > 0:
-                bins = np.logspace(np.log10(sizes_arr.min()), np.log10(sizes_arr.max()), 20)
+                bins = np.logspace(
+                    np.log10(sizes_arr.min()), np.log10(sizes_arr.max()), 20
+                )
                 counts, edges = np.histogram(sizes_arr, bins=bins)
                 centers = (edges[:-1] + edges[1:]) / 2
 

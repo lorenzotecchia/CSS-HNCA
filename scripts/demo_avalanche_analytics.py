@@ -29,6 +29,7 @@ def main() -> None:
         box_size=config.network.box_size,
         radius=config.network.radius,
         initial_weight=config.network.initial_weight,
+        excitatory_fraction=config.network.excitatory_fraction,
         seed=config.seed,
     )
     learner = HebbianLearner(
@@ -36,6 +37,8 @@ def main() -> None:
         forgetting_rate=config.learning.forgetting_rate,
         weight_min=config.network.weight_min,
         weight_max=config.network.weight_max,
+        weight_min_inh=config.network.weight_min_inh,
+        weight_max_inh=config.network.weight_max_inh,
         decay_alpha=config.learning.decay_alpha,
         oja_alpha=config.learning.oja_alpha,
     )
@@ -81,9 +84,10 @@ def main() -> None:
             simulation.step()
             detector.record_step(simulation.time_step, simulation.firing_count)
             view.update(
-                simulation.time_step,
-                simulation.firing_count,
-                simulation.network.n_neurons,
+                time_step=simulation.time_step,
+                firing_count=simulation.firing_count,
+                n_neurons=simulation.network.n_neurons,
+                avg_weight=simulation.average_weight,
             )
 
             # When all neurons stop firing, reinitialize with random fraction

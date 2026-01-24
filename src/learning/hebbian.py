@@ -77,7 +77,7 @@ class HebbianLearner:
 
         # 1. Baseline weight decay: W *= (1 - α)
         if self.decay_alpha > 0:
-            new_weights *= (1 - self.decay_alpha)
+            new_weights *= 1 - self.decay_alpha
 
         # Convert boolean arrays to float for broadcasting
         prev = firing_prev.astype(float)
@@ -100,7 +100,7 @@ class HebbianLearner:
         if self.oja_alpha > 0:
             # For each connection A->B, decay by oja_alpha * curr[B]² * W[A,B]
             # Broadcast: curr² is (N,), we want to apply to each column
-            activity_sq = curr ** 2  # (N,)
+            activity_sq = curr**2  # (N,)
             oja_decay = self.oja_alpha * activity_sq  # (N,)
             # Apply to each column j: new_weights[:, j] -= oja_decay[j] * new_weights[:, j]
             new_weights -= new_weights * oja_decay[np.newaxis, :]
