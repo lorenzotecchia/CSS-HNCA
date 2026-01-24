@@ -93,6 +93,7 @@ def create_simulation_from_config(config_path: Path) -> Simulation:
         box_size=config.network.box_size,
         radius=config.network.radius,
         initial_weight=config.network.initial_weight,
+        excitatory_fraction=config.network.excitatory_fraction,
         seed=config.seed,
     )
 
@@ -110,6 +111,8 @@ def create_simulation_from_config(config_path: Path) -> Simulation:
         forgetting_rate=config.learning.forgetting_rate,
         weight_min=config.network.weight_min,
         weight_max=config.network.weight_max,
+        weight_min_inh=config.network.weight_min_inh,
+        weight_max_inh=config.network.weight_max_inh,
         decay_alpha=config.learning.decay_alpha,
         oja_alpha=config.learning.oja_alpha,
     )
