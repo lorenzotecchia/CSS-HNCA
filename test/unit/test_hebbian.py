@@ -11,33 +11,20 @@ STDP Rules:
 import numpy as np
 import pytest
 
-from src.learning.hebbian import HebbianLearner
+from src.learning.weight_update import WeightUpdater
 
 
-class TestHebbianLearnerCreation:
-    """Tests for HebbianLearner initialization."""
+class TestWeightUpdaterCreation:
+    """Tests for WeightUpdater initialization."""
 
     def test_create_with_rates(self):
-        """Should create learner with learning and forgetting rates."""
-        learner = HebbianLearner(
+        """Should create updater with learning and forgetting rates."""
+        updater = WeightUpdater(
             learning_rate=0.01,
             forgetting_rate=0.005,
-            weight_min=0.0,
-            weight_max=1.0,
         )
-        assert learner.learning_rate == 0.01
-        assert learner.forgetting_rate == 0.005
-
-    def test_create_with_bounds(self):
-        """Should store weight bounds."""
-        learner = HebbianLearner(
-            learning_rate=0.01,
-            forgetting_rate=0.005,
-            weight_min=0.1,
-            weight_max=0.9,
-        )
-        assert learner.weight_min == 0.1
-        assert learner.weight_max == 0.9
+        assert updater.learning_rate == 0.01
+        assert updater.forgetting_rate == 0.005
 
 
 class TestLTPLongTermPotentiation:
@@ -45,11 +32,9 @@ class TestLTPLongTermPotentiation:
 
     def test_ltp_increases_weight(self):
         """Weight should increase by learning_rate for causal firing."""
-        learner = HebbianLearner(
+        updater = WeightUpdater(
             learning_rate=0.1,
             forgetting_rate=0.05,
-            weight_min=0.0,
-            weight_max=1.0,
         )
         # A fired at t (prev), B fires at t+1 (current)
         # Connection A->B should be strengthened
@@ -66,18 +51,16 @@ class TestLTPLongTermPotentiation:
         firing_prev = np.array([True, False, False])   # A fired at t
         firing_current = np.array([False, True, False])  # B fires at t+1
 
-        new_weights = learner.apply(weights, link_matrix, firing_prev, firing_current)
+        new_weights = updater.apply(weights, link_matrix, firing_prev, firing_current)
 
         # A->B should increase by 0.1
         assert new_weights[0, 1] == pytest.approx(0.6)
 
     def test_ltp_only_where_link_exists(self):
         """LTP should only apply where structural link exists."""
-        learner = HebbianLearner(
+        updater = WeightUpdater(
             learning_rate=0.1,
             forgetting_rate=0.05,
-            weight_min=0.0,
-            weight_max=1.0,
         )
         weights = np.array([
             [0.0, 0.0, 0.0],

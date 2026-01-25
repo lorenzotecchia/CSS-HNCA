@@ -11,7 +11,7 @@ from src.config.loader import load_config, ConfigValidationError
 from src.core.network import Network
 from src.core.neuron_state import NeuronState
 from src.core.simulation import Simulation
-from src.learning.hebbian import HebbianLearner
+from src.learning.weight_update import WeightUpdater
 
 
 DEFAULT_CONFIG_PATH = Path("config/default.toml")
@@ -105,11 +105,12 @@ def create_simulation_from_config(config_path: Path) -> Simulation:
         reset_potential=config.network.reset_potential,
     )
 
-    learner = HebbianLearner(
+    learner = WeightUpdater(
+        enable_stdp=True,
+        enable_oja=False,
+        enable_homeostatic=False,
         learning_rate=config.learning.learning_rate,
         forgetting_rate=config.learning.forgetting_rate,
-        weight_min=config.network.weight_min,
-        weight_max=config.network.weight_max,
         decay_alpha=config.learning.decay_alpha,
         oja_alpha=config.learning.oja_alpha,
     )

@@ -10,7 +10,7 @@ from src.config.loader import load_config
 from src.core.network import Network
 from src.core.neuron_state import NeuronState
 from src.core.simulation import Simulation
-from src.learning.hebbian import HebbianLearner
+from src.learning.weight_update import WeightUpdater
 from src.visualization.matplotlib_view import MatplotlibAnalyticsView
 
 
@@ -33,11 +33,12 @@ def main() -> None:
         initial_firing_fraction=config.network.initial_firing_fraction,
         seed=config.seed,
     )
-    learner = HebbianLearner(
+    learner = WeightUpdater(
+        enable_stdp=True,
+        enable_oja=False,
+        enable_homeostatic=False,
         learning_rate=config.learning.learning_rate,
         forgetting_rate=config.learning.forgetting_rate,
-        weight_min=config.network.weight_min,
-        weight_max=config.network.weight_max,
     )
     simulation = Simulation(
         network=network,

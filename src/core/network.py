@@ -20,6 +20,7 @@ class Network:
         n_neurons: Number of neurons in the network
         radius: Connectivity radius
         box_size: Dimensions of the 3D volume
+        inhibitory_nodes: Shape (N,) - boolean array indicating inhibitory neurons
     """
 
     positions: ndarray
@@ -28,6 +29,7 @@ class Network:
     n_neurons: int
     radius: float
     box_size: tuple[float, float, float]
+    inhibitory_nodes: ndarray
 
     @classmethod
     def create_random(
@@ -36,6 +38,7 @@ class Network:
         box_size: tuple[float, float, float],
         radius: float,
         initial_weight: float,
+        inhibitory_proportion: float = 0.0,
         seed: int | None = None,
     ) -> "Network":
         """Create a network with random neuron positions.
@@ -45,6 +48,7 @@ class Network:
             box_size: (x, y, z) dimensions of the 3D volume
             radius: Maximum distance for structural connectivity
             initial_weight: Initial synaptic weight for connected neurons
+            inhibitory_proportion: Proportion of neurons that are inhibitory (0.0 to 1.0)
             seed: Random seed for reproducibility
 
         Returns:
@@ -69,6 +73,23 @@ class Network:
         # Weight matrix: initial_weight where links exist, 0 otherwise
         weight_matrix = np.where(link_matrix, initial_weight, 0.0)
 
+        # Select inhibitory nodes
+        inhibitory_nodes = rng.random(n_neurons) < inhibitory_proportion
+
+        # Assign negative weights to inhibitory out-degrees
+        for i in range(n_neurons):
+            if inhibitory_nodes[i]:
+                weight_matrix[i, :] = -np.abs(weight_matrix[i, :])
+
+        # Clamp weights to bounds
+        for i in range(n_neurons):
+            for j in range(n_neurons):
+                if link_matrix[i, j]:
+                    if inhibitory_nodes[i]:
+                        weight_matrix[i, j] = np.clip(weight_matrix[i, j], -1.0, -0.0001)
+                    else:
+                        weight_matrix[i, j] = np.clip(weight_matrix[i, j], 0.0001, 1.0)
+
         return cls(
             positions=positions,
             link_matrix=link_matrix,
@@ -76,6 +97,7 @@ class Network:
             n_neurons=n_neurons,
             radius=radius,
             box_size=box_size,
+            inhibitory_nodes=inhibitory_nodes,
         )
 
     @classmethod
@@ -85,6 +107,7 @@ class Network:
         k_prop: float,
         a: float = 2.0,
         b: float = 6.0,
+        inhibitory_proportion: float = 0.0,
         seed: int | None = None,
     ) -> "Network":
         """Create a directed network with beta-distributed weights.
@@ -97,6 +120,7 @@ class Network:
             k_prop: Average degree proportion (2/N <= k_prop <= 1-1/N)
             a: Beta distribution parameter (a > 0)
             b: Beta distribution parameter (b > 0)
+            inhibitory_proportion: Proportion of neurons that are inhibitory (0.0 to 1.0)
             seed: Random seed for reproducibility
 
         Returns:
@@ -109,6 +133,8 @@ class Network:
             raise ValueError(f"k_prop must be in [{2/n_neurons:.3f}, {1-1/n_neurons:.3f}]")
         if a <= 0 or b <= 0:
             raise ValueError("a and b must be > 0")
+        if not (0.0 <= inhibitory_proportion <= 1.0):
+            raise ValueError("inhibitory_proportion must be in [0.0, 1.0]")
 
         rng = np.random.default_rng(seed)
 
@@ -157,6 +183,23 @@ class Network:
                 if link_matrix[i, j]:
                     weight_matrix[i, j] = rng.beta(a, b)
 
+        # Select inhibitory nodes
+        inhibitory_nodes = rng.random(n_neurons) < inhibitory_proportion
+
+        # Assign negative weights to inhibitory out-degrees
+        for i in range(n_neurons):
+            if inhibitory_nodes[i]:
+                weight_matrix[i, :] = -np.abs(weight_matrix[i, :])
+
+        # Clamp weights to bounds
+        for i in range(n_neurons):
+            for j in range(n_neurons):
+                if link_matrix[i, j]:
+                    if inhibitory_nodes[i]:
+                        weight_matrix[i, j] = np.clip(weight_matrix[i, j], -1.0, -0.0001)
+                    else:
+                        weight_matrix[i, j] = np.clip(weight_matrix[i, j], 0.0001, 1.0)
+
         return cls(
             positions=positions,
             link_matrix=link_matrix,
@@ -164,4 +207,5 @@ class Network:
             n_neurons=n_neurons,
             radius=r,
             box_size=(1.0, 1.0, 1.0),
+            inhibitory_nodes=inhibitory_nodes,
         )

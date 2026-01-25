@@ -281,3 +281,108 @@ class TestNetworkReproducibility:
             seed=222,
         )
         assert not np.array_equal(net1.positions, net2.positions)
+
+
+class TestInhibitoryNodes:
+    """Tests for inhibitory neuron functionality."""
+
+    def test_inhibitory_proportion_zero_no_inhibitory(self):
+        """With inhibitory_proportion=0, no neurons should be inhibitory."""
+        network = Network.create_beta_weighted_directed(
+            n_neurons=100,
+            k_prop=0.1,
+            inhibitory_proportion=0.0,
+            seed=42,
+        )
+        assert not np.any(network.inhibitory_nodes)
+
+    def test_inhibitory_proportion_one_all_inhibitory(self):
+        """With inhibitory_proportion=1, all neurons should be inhibitory."""
+        network = Network.create_beta_weighted_directed(
+            n_neurons=50,
+            k_prop=0.1,
+            inhibitory_proportion=1.0,
+            seed=42,
+        )
+        assert np.all(network.inhibitory_nodes)
+
+    def test_inhibitory_proportion_correct_count(self):
+        """Proportion of inhibitory neurons should match inhibitory_proportion."""
+        n_neurons = 200
+        prop = 0.3
+        network = Network.create_beta_weighted_directed(
+            n_neurons=n_neurons,
+            k_prop=0.1,
+            inhibitory_proportion=prop,
+            seed=42,
+        )
+        actual_prop = np.mean(network.inhibitory_nodes)
+        # Allow some tolerance due to randomness
+        assert abs(actual_prop - prop) < 0.1
+
+    def test_inhibitory_out_degrees_negative(self):
+        """All out-degrees of inhibitory neurons should have negative weights."""
+        network = Network.create_beta_weighted_directed(
+            n_neurons=50,
+            k_prop=0.2,
+            inhibitory_proportion=0.5,
+            seed=42,
+        )
+        for i in range(network.n_neurons):
+            if network.inhibitory_nodes[i]:
+                out_weights = network.weight_matrix[i, network.link_matrix[i, :]]
+                assert np.all(out_weights < 0), f"Inhibitory neuron {i} has positive out-weights"
+
+    def test_excitatory_out_degrees_positive(self):
+        """All out-degrees of excitatory neurons should have positive weights."""
+        network = Network.create_beta_weighted_directed(
+            n_neurons=50,
+            k_prop=0.2,
+            inhibitory_proportion=0.5,
+            seed=42,
+        )
+        for i in range(network.n_neurons):
+            if not network.inhibitory_nodes[i]:
+                out_weights = network.weight_matrix[i, network.link_matrix[i, :]]
+                assert np.all(out_weights > 0), f"Excitatory neuron {i} has negative out-weights"
+
+    def test_inhibitory_weights_bounds(self):
+        """Inhibitory weights should be bounded by -1.0 and -0.0001."""
+        network = Network.create_beta_weighted_directed(
+            n_neurons=50,
+            k_prop=0.2,
+            inhibitory_proportion=0.5,
+            seed=42,
+        )
+        for i in range(network.n_neurons):
+            if network.inhibitory_nodes[i]:
+                out_weights = network.weight_matrix[i, network.link_matrix[i, :]]
+                assert np.all(out_weights >= -1.0) and np.all(out_weights <= -0.0001)
+
+    def test_excitatory_weights_bounds(self):
+        """Excitatory weights should be bounded by 0.0001 and 1.0."""
+        network = Network.create_beta_weighted_directed(
+            n_neurons=50,
+            k_prop=0.2,
+            inhibitory_proportion=0.5,
+            seed=42,
+        )
+        for i in range(network.n_neurons):
+            if not network.inhibitory_nodes[i]:
+                out_weights = network.weight_matrix[i, network.link_matrix[i, :]]
+                assert np.all(out_weights >= 0.0001) and np.all(out_weights <= 1.0)
+
+    def test_inhibitory_proportion_validation(self):
+        """inhibitory_proportion should be validated."""
+        with pytest.raises(ValueError, match="inhibitory_proportion must be in"):
+            Network.create_beta_weighted_directed(
+                n_neurons=10,
+                k_prop=0.1,
+                inhibitory_proportion=-0.1,
+            )
+        with pytest.raises(ValueError, match="inhibitory_proportion must be in"):
+            Network.create_beta_weighted_directed(
+                n_neurons=10,
+                k_prop=0.1,
+                inhibitory_proportion=1.1,
+            )

@@ -27,7 +27,7 @@ from src.config.loader import load_config
 from src.core.network import Network
 from src.core.neuron_state import NeuronState
 from src.core.simulation import Simulation
-from src.learning.hebbian import HebbianLearner
+from src.learning.weight_update import WeightUpdater
 from src.visualization.avalanche_controller import AvalancheController
 
 DEFAULT_CONFIG_PATH = Path("config/default.toml")
@@ -238,12 +238,14 @@ def create_simulation(
     k_prop: float,
     a: float,
     b: float,
+    inhibitory_proportion: float,
 ) -> Simulation:
     network = Network.create_beta_weighted_directed(
         n_neurons=n_neurons,
         k_prop=k_prop,
         a=a,
         b=b,
+        inhibitory_proportion=inhibitory_proportion,
         seed=seed,
     )
 
@@ -256,13 +258,17 @@ def create_simulation(
         reset_potential=config.network.reset_potential,
     )
 
-    learner = HebbianLearner(
+    learner = WeightUpdater(
+        enable_stdp=True,
+        enable_oja=False,
+        enable_homeostatic=False,
         learning_rate=config.learning.learning_rate,
         forgetting_rate=config.learning.forgetting_rate,
-        weight_min=config.network.weight_min,
-        weight_max=config.network.weight_max,
-        decay_alpha=config.learning.decay_alpha,
         oja_alpha=config.learning.oja_alpha,
+        spike_timespan=100,
+        min_spike_amount=5,
+        max_spike_amount=15,
+        weight_change_constant=0.01,
     )
 
     return Simulation(
@@ -284,9 +290,11 @@ def main() -> None:
     k_prop = 0.05
     beta_a = 2.0
     beta_b = 6.0
+    inhibitory_proportion = 0.0
+    stimulus_count = 1
 
-    simulation = create_simulation(config, current_seed, n_neurons, k_prop, beta_a, beta_b)
-    avalanche_controller = AvalancheController(simulation, n_neurons=n_neurons)
+    simulation = create_simulation(config, current_seed, n_neurons, k_prop, beta_a, beta_b, inhibitory_proportion)
+    avalanche_controller = AvalancheController(simulation, n_neurons=n_neurons, stimulus_count=stimulus_count)
 
     pygame.init()
     screen = pygame.display.set_mode(WINDOW_SIZE)
@@ -317,26 +325,26 @@ def main() -> None:
 
     ui_elements = []
     y_pos = 100
+    ui_elements.append(Checkbox(pygame.Rect(20, y_pos, 20, 20), simulation.learner.enable_stdp, "STDP"))
+    y_pos += 30
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.1, simulation.learner.learning_rate, "L Rate"))
     y_pos += 30
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.1, simulation.learner.forgetting_rate, "F Rate"))
     y_pos += 30
-    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 1.0, simulation.learner.weight_min, "W Min"))
-    y_pos += 30
-    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 1.0, simulation.learner.weight_max, "W Max"))
-    y_pos += 30
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.01, simulation.learner.decay_alpha, "Decay"))
     y_pos += 30
-    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.01, simulation.learner.oja_alpha, "Oja"))
+    ui_elements.append(Checkbox(pygame.Rect(20, y_pos, 20, 20), simulation.learner.enable_oja, "Oja"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.01, simulation.learner.oja_alpha, "Oja Alpha"))
     y_pos += 30
     ui_elements.append(Checkbox(pygame.Rect(20, y_pos, 20, 20), simulation.learner.enable_homeostatic, "Homeo"))
     y_pos += 30
-    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 10, 200, simulation.learner.spike_timespan, "Timespan"))
-    y_pos += 30
-    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0, 50, simulation.learner.min_spike_amount, "Min Spikes"))
-    y_pos += 30
-    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0, 50, simulation.learner.max_spike_amount, "Max Spikes"))
-    y_pos += 30
+    ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(int(simulation.learner.spike_timespan)), "Timespan"))
+    y_pos += 35
+    ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(int(simulation.learner.min_spike_amount)), "Min Spikes"))
+    y_pos += 35
+    ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(int(simulation.learner.max_spike_amount)), "Max Spikes"))
+    y_pos += 35
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.1, simulation.learner.weight_change_constant, "W Change"))
     y_pos += 50
     ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(n_neurons), "N Neurons"))
@@ -346,6 +354,10 @@ def main() -> None:
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.1, 10.0, beta_a, "Beta A"))
     y_pos += 30
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.1, 10.0, beta_b, "Beta B"))
+    y_pos += 30
+    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 1.0, inhibitory_proportion, "Inhib Prop"))
+    y_pos += 30
+    ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(stimulus_count), "Stimulus Count"))
 
     ui_elements[12].min_val = 2 / n_neurons
     ui_elements[12].max_val = 1 - 1 / n_neurons
@@ -356,7 +368,7 @@ def main() -> None:
     input_error: str | None = None
 
     def read_network_params_from_ui() -> None:
-        nonlocal n_neurons, k_prop, beta_a, beta_b
+        nonlocal n_neurons, k_prop, beta_a, beta_b, inhibitory_proportion, stimulus_count
         try:
             n_neurons = int(ui_elements[11].text)
         except ValueError:
@@ -364,19 +376,25 @@ def main() -> None:
         k_prop = ui_elements[12].val
         beta_a = ui_elements[13].val
         beta_b = ui_elements[14].val
+        inhibitory_proportion = round(ui_elements[15].val, 2)  # Round to avoid rounding errors
+        ui_elements[15].val = inhibitory_proportion  # Sync back to slider
+        try:
+            stimulus_count = int(ui_elements[16].text)
+        except ValueError:
+            pass
 
     def rebuild_simulation(new_seed: int | None = None) -> None:
         nonlocal simulation, projected_nodes, edge_indices, running_sim, accumulator, current_seed
         if new_seed is not None:
             current_seed = new_seed
-        simulation = create_simulation(config, current_seed, n_neurons, k_prop, beta_a, beta_b)
+        simulation = create_simulation(config, current_seed, n_neurons, k_prop, beta_a, beta_b, inhibitory_proportion)
         projected_nodes = project_positions(
             simulation.network.positions, simulation.network.box_size, viewport, yaw, pitch, zoom
         )
         edge_indices = [tuple(idx) for idx in np.argwhere(simulation.network.link_matrix)]
         running_sim = False
         accumulator = 0.0
-        avalanche_controller.rebind(simulation, n_neurons=n_neurons, reset_seen=True)
+        avalanche_controller.rebind(simulation, n_neurons=n_neurons, stimulus_count=stimulus_count, reset_seen=True)
 
     def do_step() -> None:
         nonlocal running_sim
@@ -509,21 +527,30 @@ def main() -> None:
                     elif event.key == pygame.K_a:
                         start_input("avalanches")
 
-        simulation.learner.learning_rate = ui_elements[0].val
-        simulation.learner.forgetting_rate = ui_elements[1].val
-        simulation.learner.weight_min = ui_elements[2].val
-        simulation.learner.weight_max = ui_elements[3].val
-        simulation.learner.decay_alpha = ui_elements[4].val
+        simulation.learner.enable_stdp = ui_elements[0].val
+        simulation.learner.learning_rate = ui_elements[1].val
+        simulation.learner.forgetting_rate = ui_elements[2].val
+        simulation.learner.decay_alpha = ui_elements[3].val
+        simulation.learner.enable_oja = ui_elements[4].val
         simulation.learner.oja_alpha = ui_elements[5].val
         simulation.learner.enable_homeostatic = ui_elements[6].val
         old_timespan = simulation.learner.spike_timespan
-        simulation.learner.spike_timespan = int(ui_elements[7].val)
+        try:
+            simulation.learner.spike_timespan = int(ui_elements[7].text)
+        except ValueError:
+            simulation.learner.spike_timespan = old_timespan
         if simulation.learner.spike_timespan != old_timespan:
             simulation.learner.spike_history = deque(
                 simulation.learner.spike_history, maxlen=simulation.learner.spike_timespan
             )
-        simulation.learner.min_spike_amount = int(ui_elements[8].val)
-        simulation.learner.max_spike_amount = int(ui_elements[9].val)
+        try:
+            simulation.learner.min_spike_amount = int(ui_elements[8].text)
+        except ValueError:
+            pass
+        try:
+            simulation.learner.max_spike_amount = int(ui_elements[9].text)
+        except ValueError:
+            pass
         simulation.learner.weight_change_constant = ui_elements[10].val
 
         try:
@@ -534,6 +561,13 @@ def main() -> None:
                 ui_elements[12].val = max(
                     ui_elements[12].min_val, min(ui_elements[12].max_val, ui_elements[12].val)
                 )
+        except ValueError:
+            pass
+
+        # Update avalanche stimulus count
+        try:
+            avalanche_controller.stimulus_count = int(ui_elements[16].text)
+            avalanche_controller.stimulus_count = max(1, min(avalanche_controller.stimulus_count, n_neurons))
         except ValueError:
             pass
 

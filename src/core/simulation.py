@@ -16,7 +16,7 @@ from src.core.neuron_state import NeuronState
 
 if TYPE_CHECKING:
     from src.events.bus import EventBus
-    from src.learning.hebbian import HebbianLearner
+    from src.learning.weight_update import WeightUpdater
 
 
 class SimulationState(Enum):
@@ -44,7 +44,7 @@ class Simulation:
     state: NeuronState
     learning_rate: float
     forgetting_rate: float
-    learner: HebbianLearner | None = None
+    learner: WeightUpdater | None = None
     event_bus: EventBus | None = None
     time_step: int = field(default=0, init=False)
     sim_state: SimulationState = field(default=SimulationState.STOPPED, init=False)
@@ -93,6 +93,7 @@ class Simulation:
                 link_matrix=self.network.link_matrix,
                 firing_prev=firing_prev,
                 firing_current=self.state.firing,
+                inhibitory_nodes=self.network.inhibitory_nodes,
             )
             self.network.weight_matrix[:] = new_weights
 
