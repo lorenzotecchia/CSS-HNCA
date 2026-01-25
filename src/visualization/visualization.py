@@ -325,12 +325,12 @@ def main() -> None:
     y_pos += 30
     ui_elements.append(Checkbox(pygame.Rect(20, y_pos, 20, 20), simulation.learner.enable_homeostatic, "Homeo"))
     y_pos += 30
-    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 10, 200, simulation.learner.spike_timespan, "Timespan"))
-    y_pos += 30
-    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0, 50, simulation.learner.min_spike_amount, "Min Spikes"))
-    y_pos += 30
-    ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0, 50, simulation.learner.max_spike_amount, "Max Spikes"))
-    y_pos += 30
+    ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(int(simulation.learner.spike_timespan)), "Timespan"))
+    y_pos += 35
+    ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(int(simulation.learner.min_spike_amount)), "Min Spikes"))
+    y_pos += 35
+    ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(int(simulation.learner.max_spike_amount)), "Max Spikes"))
+    y_pos += 35
     ui_elements.append(Slider(pygame.Rect(20, y_pos, 200, 20), 0.0, 0.1, simulation.learner.weight_change_constant, "W Change"))
     y_pos += 50  # Space for network params
     ui_elements.append(TextInput(pygame.Rect(20, y_pos, 100, 25), str(n_neurons), "N Neurons"))
@@ -434,11 +434,20 @@ def main() -> None:
         simulation.learner.oja_alpha = ui_elements[5].val
         simulation.learner.enable_homeostatic = ui_elements[6].val
         old_timespan = simulation.learner.spike_timespan
-        simulation.learner.spike_timespan = int(ui_elements[7].val)
+        try:
+            simulation.learner.spike_timespan = int(ui_elements[7].text)
+        except ValueError:
+            simulation.learner.spike_timespan = old_timespan
         if simulation.learner.spike_timespan != old_timespan:
             simulation.learner.spike_history = deque(simulation.learner.spike_history, maxlen=simulation.learner.spike_timespan)
-        simulation.learner.min_spike_amount = int(ui_elements[8].val)
-        simulation.learner.max_spike_amount = int(ui_elements[9].val)
+        try:
+            simulation.learner.min_spike_amount = int(ui_elements[8].text)
+        except ValueError:
+            pass
+        try:
+            simulation.learner.max_spike_amount = int(ui_elements[9].text)
+        except ValueError:
+            pass
         simulation.learner.weight_change_constant = ui_elements[10].val
 
         # Update k_prop slider bounds based on current n_neurons text
