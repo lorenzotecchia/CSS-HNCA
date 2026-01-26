@@ -11,12 +11,14 @@ Run with: python scripts/avg_weight.py
 """
 
 import csv
+import os
 import sys
 from dataclasses import dataclass
-from itertools import product
+from multiprocessing import Pool, cpu_count
 from pathlib import Path
-from scipy.stats import qmc
+
 import numpy as np
+from scipy.stats import qmc
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -208,47 +210,66 @@ def run_single_sweep(
     )
 
 
-def main() -> None:
-    """Run parameter sweep and save results."""
-    # number of steps and warm up
-    total_steps=6000
-    warmup_steps=1000
-    n_replications=100
-    
-    # Parameter ranges to sweep
-    sampler = qmc.LatinHypercube(d=2)
-    sample = sampler.random(n=n_replications)
-    parameters_bounds = [0, 0.1]
-
-    print(f"Running {n_replications} parameter combinations...")
-    print(f"Total steps: {total_steps}, Warm-up: {warmup_steps}\n")
-
-    results: list[SweepResult] = []
-    count = 0
-
-    for lr, fr in (parameters_bounds[1] - parameters_bounds[0]) * sample + parameters_bounds[0]:
-        count += 1
-        print(
-            f"[{count}/{n_replications}] learning_rate={lr:.4f}, forgetting_rate={fr:.4f}",
-            end=" -> ",
+def _run_sweep_task(args: tuple) -> SweepResult | None:
+    """Worker function for parallel execution."""
+    rate, total_steps, warmup_steps, idx, n_total = args
+    print(
+        f"[{idx}/{n_total}] rate={rate:.6f} (lr=fr)",
+        flush=True,
+    )
+    try:
+        result = run_single_sweep(
+            learning_rate=rate,
+            forgetting_rate=rate,
+            total_steps=total_steps,
+            warmup_steps=warmup_steps,
         )
+        print(
+            f"  -> avg_weight={result.avg_weight:.4f}, "
+            f"avg_firing={result.avg_firing_count:.1f}, "
+            f"avalanches={result.n_avalanches}",
+            flush=True,
+        )
+        return result
+    except Exception as e:
+        print(f"  -> ERROR: {e}", flush=True)
+        return None
 
-        try:
-            result = run_single_sweep(
-                learning_rate=lr,
-                forgetting_rate=fr,
-                total_steps=10000,
-                warmup_steps=1000,
-            )
-            results.append(result)
 
-            print(
-                f"avg_weight={result.avg_weight:.4f}, "
-                f"avg_firing={result.avg_firing_count:.1f}, "
-                f"avalanches={result.n_avalanches}"
-            )
-        except Exception as e:
-            print(f"ERROR: {e}")
+def main() -> None:
+    """Run parameter sweep along diagonal (lr == forgetting_rate) with parallelization."""
+    # number of steps and warm up
+    total_steps = 10000
+    warmup_steps = 1000
+    n_replications = 100
+
+    # Parameter range for diagonal sweep (1D sampling: lr == forgetting_rate)
+    sampler = qmc.LatinHypercube(d=1)
+    sample = sampler.random(n=n_replications).flatten()
+    parameters_bounds = [0.00001, 0.1]
+    rates = (parameters_bounds[1] - parameters_bounds[0]) * sample + parameters_bounds[0]
+
+    # Number of parallel workers (leave some CPUs free)
+    n_workers = max(1, cpu_count() - 2)
+
+    print(f"Running {n_replications} diagonal parameter combinations (lr == fr)...")
+    print(f"Total steps: {total_steps}, Warm-up: {warmup_steps}")
+    print(f"Using {n_workers} parallel workers\n")
+
+    # Prepare task arguments
+    tasks = [
+        (rate, total_steps, warmup_steps, idx + 1, n_replications)
+        for idx, rate in enumerate(rates)
+    ]
+
+    # Run in parallel
+    with Pool(processes=n_workers) as pool:
+        results_raw = pool.map(_run_sweep_task, tasks)
+
+    # Filter out failed runs
+    results: list[SweepResult] = [r for r in results_raw if r is not None]
+
+    print(f"\nCompleted {len(results)}/{n_replications} runs successfully")
 
     # Save results to CSV
     output_path = Path("output/learning_forgetting_sweep.csv")
