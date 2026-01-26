@@ -159,10 +159,9 @@ def main() -> int:
     if args.headless:
         run_headless(simulation, args.steps, args.verbose)
     else:
-        # Full visualization mode - to be implemented in Phase 4
-        print("Visualization mode not yet implemented.")
-        print("Use --headless --steps N to run in headless mode.")
-        return 0
+        # Full visualization mode with pygame
+        from src.visualization.visualization import main as viz_main
+        viz_main(args.config)
 
     return 0
 

@@ -169,13 +169,20 @@ def create_simulation(config_path: Path, seed: int | None) -> Simulation:
     )
 
 
-def main() -> None:
-    config = load_config(DEFAULT_CONFIG_PATH)
+def main(config_path: Path = DEFAULT_CONFIG_PATH, show_plots: bool = True) -> None:
+    config = load_config(config_path)
     base_seed = config.seed if config.seed is not None else int(time.time())
     reset_index = 0
     current_seed = base_seed
 
-    simulation = create_simulation(DEFAULT_CONFIG_PATH, current_seed)
+    simulation = create_simulation(config_path, current_seed)
+
+    # Initialize matplotlib analytics if requested
+    analytics_view = None
+    if show_plots:
+        from src.visualization.matplotlib_view import MatplotlibAnalyticsView
+        analytics_view = MatplotlibAnalyticsView(show_heatmap=True)
+        analytics_view.initialize()
 
     pygame.init()
     screen = pygame.display.set_mode(WINDOW_SIZE)
@@ -206,6 +213,8 @@ def main() -> None:
 
     def do_step() -> None:
         simulation.step()
+        if analytics_view is not None:
+            analytics_view.update_from_simulation(simulation)
 
     def do_reset() -> None:
         nonlocal reset_index, current_seed, projected_nodes, edge_indices, running_sim, accumulator
@@ -346,6 +355,8 @@ def main() -> None:
 
         pygame.display.flip()
 
+    if analytics_view is not None:
+        analytics_view.close()
     pygame.quit()
 
 
