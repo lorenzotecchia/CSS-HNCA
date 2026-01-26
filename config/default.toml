@@ -10,14 +10,14 @@ weight_max = 0.3
 initial_firing_fraction = 0.15  # 15% of neurons fire at t=0
 leak_rate = 0.08               # LIF: slower leak to sustain activity
 reset_potential = 0.4          # LIF: partial reset after firing
-excitatory_fraction = 0.8      # 80% excitatory, 20% inhibitory
+excitatory_fraction = 1      # 80% excitatory, 20% inhibitory
 weight_min_inh = -0.3          # inhibitory weight bounds
 weight_max_inh = 0.0
 
 [learning]
 threshold = 0.4                  # Lower threshold for easier activation
-learning_rate = 0.004
-forgetting_rate = 0.004          # LTD = LTP for balance
+learning_rate = 0.01
+forgetting_rate = 0.01          # LTD = LTP for balance
 decay_alpha = 0.0005             # Weak baseline decay
 oja_alpha = 0.002                # Moderate Oja normalization
 
