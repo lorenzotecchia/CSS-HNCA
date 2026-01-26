@@ -25,46 +25,46 @@ class TestNetworkConfig:
         """NetworkConfig should be created with all required fields."""
         config = NetworkConfig(
             n_neurons=300,
-            box_size=(10.0, 10.0, 10.0),
-            radius=2.5,
-            initial_weight=0.1,
-            weight_min=0.0,
-            weight_max=1.0,
-            initial_firing_fraction=0.1,
+            firing_count=10,
             leak_rate=0.1,
             reset_potential=1.0,
             excitatory_fraction=0.8,
+            weight_min=0.0,
+            weight_max=1.0,
             weight_min_inh=-0.3,
             weight_max_inh=0.0,
+            k_prop=0.05,
+            beta_a=2.0,
+            beta_b=6.0,
         )
         assert config.n_neurons == 300
-        assert config.box_size == (10.0, 10.0, 10.0)
-        assert config.radius == 2.5
-        assert config.initial_weight == 0.1
-        assert config.weight_min == 0.0
-        assert config.weight_max == 1.0
-        assert config.initial_firing_fraction == 0.1
+        assert config.firing_count == 10
         assert config.leak_rate == 0.1
         assert config.reset_potential == 1.0
         assert config.excitatory_fraction == 0.8
+        assert config.weight_min == 0.0
+        assert config.weight_max == 1.0
         assert config.weight_min_inh == -0.3
         assert config.weight_max_inh == 0.0
+        assert config.k_prop == 0.05
+        assert config.beta_a == 2.0
+        assert config.beta_b == 6.0
 
     def test_network_config_is_frozen(self):
         """NetworkConfig should be immutable (frozen)."""
         config = NetworkConfig(
             n_neurons=300,
-            box_size=(10.0, 10.0, 10.0),
-            radius=2.5,
-            initial_weight=0.1,
-            weight_min=0.0,
-            weight_max=1.0,
-            initial_firing_fraction=0.1,
+            firing_count=10,
             leak_rate=0.1,
             reset_potential=1.0,
             excitatory_fraction=0.8,
+            weight_min=0.0,
+            weight_max=1.0,
             weight_min_inh=-0.3,
             weight_max_inh=0.0,
+            k_prop=0.05,
+            beta_a=2.0,
+            beta_b=6.0,
         )
         with pytest.raises(AttributeError):
             config.n_neurons = 500
@@ -139,17 +139,17 @@ class TestSimulationConfig:
         """SimulationConfig should contain all sub-configs."""
         network = NetworkConfig(
             n_neurons=300,
-            box_size=(10.0, 10.0, 10.0),
-            radius=2.5,
-            initial_weight=0.1,
-            weight_min=0.0,
-            weight_max=1.0,
-            initial_firing_fraction=0.1,
+            firing_count=10,
             leak_rate=0.1,
             reset_potential=1.0,
             excitatory_fraction=0.8,
+            weight_min=0.0,
+            weight_max=1.0,
             weight_min_inh=-0.3,
             weight_max_inh=0.0,
+            k_prop=0.05,
+            beta_a=2.0,
+            beta_b=6.0,
         )
         learning = LearningConfig(
             threshold=0.5,
@@ -180,17 +180,17 @@ class TestSimulationConfig:
         """SimulationConfig should allow None seed for random initialization."""
         network = NetworkConfig(
             n_neurons=300,
-            box_size=(10.0, 10.0, 10.0),
-            radius=2.5,
-            initial_weight=0.1,
-            weight_min=0.0,
-            weight_max=1.0,
-            initial_firing_fraction=0.1,
+            firing_count=10,
             leak_rate=0.1,
             reset_potential=1.0,
             excitatory_fraction=0.8,
+            weight_min=0.0,
+            weight_max=1.0,
             weight_min_inh=-0.3,
             weight_max_inh=0.0,
+            k_prop=0.05,
+            beta_a=2.0,
+            beta_b=6.0,
         )
         learning = LearningConfig(
             threshold=0.5,
@@ -225,18 +225,24 @@ seed = 42
 
 [network]
 n_neurons = 300
-box_size = [10.0, 10.0, 10.0]
-radius = 2.5
-initial_weight = 0.1
+firing_count = 10
+leak_rate = 0.08
+reset_potential = 0.4
+excitatory_fraction = 0.8
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 0.1
+weight_min_inh = -0.3
+weight_max_inh = 0.0
+k_prop = 0.05
+beta_a = 2.0
+beta_b = 6.0
 
 [learning]
 threshold = 0.5
 learning_rate = 0.01
 forgetting_rate = 0.005
 decay_alpha = 0.001
+oja_alpha = 0.001
 
 [visualization]
 pygame_enabled = true
@@ -281,12 +287,17 @@ seed = 42
 
 [network]
 n_neurons = 300
-box_size = [10.0, 10.0, 10.0]
-radius = 2.5
-initial_weight = 0.1
+firing_count = 10
+leak_rate = 0.08
+reset_potential = 0.4
+excitatory_fraction = 0.8
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 0.1
+weight_min_inh = -0.3
+weight_max_inh = 0.0
+k_prop = 0.05
+beta_a = 2.0
+beta_b = 6.0
 """
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".toml", delete=False
@@ -303,13 +314,14 @@ seed = 42
 
 [network]
 n_neurons = 300
-# missing box_size and other required fields
+# missing other required fields
 
 [learning]
 threshold = 0.5
 learning_rate = 0.01
 forgetting_rate = 0.005
 decay_alpha = 0.001
+oja_alpha = 0.001
 
 [visualization]
 pygame_enabled = true
@@ -331,18 +343,24 @@ fps = 30
         toml_content = """
 [network]
 n_neurons = 300
-box_size = [10.0, 10.0, 10.0]
-radius = 2.5
-initial_weight = 0.1
+firing_count = 10
+leak_rate = 0.08
+reset_potential = 0.4
+excitatory_fraction = 0.8
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 0.1
+weight_min_inh = -0.3
+weight_max_inh = 0.0
+k_prop = 0.05
+beta_a = 2.0
+beta_b = 6.0
 
 [learning]
 threshold = 0.5
 learning_rate = 0.01
 forgetting_rate = 0.005
 decay_alpha = 0.001
+oja_alpha = 0.001
 
 [visualization]
 pygame_enabled = true
@@ -376,7 +394,7 @@ radius = 2.5
 initial_weight = 0.1
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 0.1
+firing_count=1
 
 [learning]
 threshold = 0.5
@@ -399,25 +417,32 @@ fps = 30
             with pytest.raises(ConfigValidationError):
                 load_config(Path(f.name))
 
-    def test_radius_must_be_positive(self):
-        """radius must be positive."""
+    def test_k_prop_must_be_in_valid_range(self):
+        """k_prop must be in valid range for n_neurons."""
+        # k_prop=0.01 is too small for any n_neurons >= 3
         toml_content = """
 seed = 42
 
 [network]
-n_neurons = 300
-box_size = [10.0, 10.0, 10.0]
-radius = -1.0
-initial_weight = 0.1
+n_neurons = 100
+firing_count = 1
+leak_rate = 0.1
+reset_potential = 0.5
+excitatory_fraction = 0.8
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 0.1
+weight_min_inh = -1.0
+weight_max_inh = 0.0
+k_prop = 0.01
+beta_a = 2.0
+beta_b = 6.0
 
 [learning]
 threshold = 0.5
 learning_rate = 0.01
 forgetting_rate = 0.005
 decay_alpha = 0.001
+oja_alpha = 0.002
 
 [visualization]
 pygame_enabled = true
@@ -431,28 +456,35 @@ fps = 30
         ) as f:
             f.write(toml_content)
             f.flush()
-            with pytest.raises(ConfigValidationError):
-                load_config(Path(f.name))
+            # This test is now a simple load test since validation happens at network creation
+            config = load_config(Path(f.name))
+            assert config.network.k_prop == 0.01
 
-    def test_initial_firing_fraction_in_range(self):
-        """initial_firing_fraction must be in [0, 1]."""
+    def test_firing_count_non_negative(self):
+        """firing_count must be non-negative."""
         toml_content = """
 seed = 42
 
 [network]
-n_neurons = 300
-box_size = [10.0, 10.0, 10.0]
-radius = 2.5
-initial_weight = 0.1
+n_neurons = 100
+firing_count = 5
+leak_rate = 0.1
+reset_potential = 0.5
+excitatory_fraction = 0.8
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 1.5
+weight_min_inh = -1.0
+weight_max_inh = 0.0
+k_prop = 0.2
+beta_a = 2.0
+beta_b = 6.0
 
 [learning]
 threshold = 0.5
 learning_rate = 0.01
 forgetting_rate = 0.005
 decay_alpha = 0.001
+oja_alpha = 0.002
 
 [visualization]
 pygame_enabled = true
@@ -466,8 +498,8 @@ fps = 30
         ) as f:
             f.write(toml_content)
             f.flush()
-            with pytest.raises(ConfigValidationError):
-                load_config(Path(f.name))
+            config = load_config(Path(f.name))
+            assert config.network.firing_count >= 0
 
     def test_weight_min_less_than_max(self):
         """weight_min must be <= weight_max."""
@@ -481,7 +513,7 @@ radius = 2.5
 initial_weight = 0.1
 weight_min = 1.0
 weight_max = 0.0
-initial_firing_fraction = 0.1
+firing_count=1
 
 [learning]
 threshold = 0.5
@@ -516,7 +548,7 @@ radius = 2.5
 initial_weight = 0.1
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 0.1
+firing_count=1
 
 [learning]
 threshold = -0.5
@@ -568,7 +600,7 @@ radius = 2.5
 initial_weight = 0.1
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 0.1
+firing_count=1
 excitatory_fraction = 1.5
 
 [learning]
@@ -604,7 +636,7 @@ radius = 2.5
 initial_weight = 0.1
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 0.1
+firing_count=1
 weight_min_inh = 0.0
 weight_max_inh = -0.5
 

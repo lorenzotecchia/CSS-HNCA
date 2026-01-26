@@ -1,20 +1,39 @@
 """Property-based tests for Network using Hypothesis.
 
-RED phase: These tests should fail until Network is implemented.
+Tests Network invariants using the beta-weighted directed network.
 """
 
 import numpy as np
-from hypothesis import given, strategies as st, assume, settings
+from hypothesis import given, strategies as st, settings
 
 from src.core.network import Network
 
 
 # Custom strategies for network parameters
-n_neurons_strategy = st.integers(min_value=2, max_value=100)
-box_dim_strategy = st.floats(min_value=1.0, max_value=100.0, allow_nan=False)
-radius_strategy = st.floats(min_value=0.1, max_value=50.0, allow_nan=False)
-weight_strategy = st.floats(min_value=0.0, max_value=1.0, allow_nan=False)
+n_neurons_strategy = st.integers(min_value=5, max_value=50)
+k_prop_strategy = st.floats(min_value=0.1, max_value=0.5, allow_nan=False)
 seed_strategy = st.integers(min_value=0, max_value=2**31 - 1)
+excitatory_fraction_strategy = st.floats(min_value=0.0, max_value=1.0)
+
+
+def create_network(
+    n_neurons: int,
+    k_prop: float | None = None,
+    excitatory_fraction: float = 0.8,
+    seed: int = 42,
+) -> Network:
+    """Helper to create a network for testing."""
+    # Compute valid k_prop range for given n_neurons (must be in [2/n, 1-1/n])
+    k_min = 2 / n_neurons
+    k_max = 1 - 1 / n_neurons
+    if k_prop is None or k_prop < k_min or k_prop > k_max:
+        k_prop = (k_min + k_max) / 2  # Use midpoint of valid range
+    return Network.create_beta_weighted_directed(
+        n_neurons=n_neurons,
+        k_prop=k_prop,
+        excitatory_fraction=excitatory_fraction,
+        seed=seed,
+    )
 
 
 class TestNetworkPositionProperties:
@@ -22,50 +41,26 @@ class TestNetworkPositionProperties:
 
     @given(
         n_neurons=n_neurons_strategy,
-        box_x=box_dim_strategy,
-        box_y=box_dim_strategy,
-        box_z=box_dim_strategy,
-        radius=radius_strategy,
-        initial_weight=weight_strategy,
+        k_prop=k_prop_strategy,
         seed=seed_strategy,
     )
-    @settings(max_examples=50)
-    def test_positions_always_within_bounds(
-        self, n_neurons, box_x, box_y, box_z, radius, initial_weight, seed
-    ):
-        """Positions must always be within [0, box_size] for all dimensions."""
-        network = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=(box_x, box_y, box_z),
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
+    @settings(deadline=None, max_examples=50)
+    def test_positions_always_within_bounds(self, n_neurons, k_prop, seed):
+        """Positions must always be within [0, 1] for unit cube."""
+        network = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
 
         assert np.all(network.positions >= 0)
-        assert np.all(network.positions[:, 0] <= box_x)
-        assert np.all(network.positions[:, 1] <= box_y)
-        assert np.all(network.positions[:, 2] <= box_z)
+        assert np.all(network.positions <= 1)
 
     @given(
         n_neurons=n_neurons_strategy,
-        box_size=st.tuples(box_dim_strategy, box_dim_strategy, box_dim_strategy),
-        radius=radius_strategy,
-        initial_weight=weight_strategy,
+        k_prop=k_prop_strategy,
         seed=seed_strategy,
     )
-    @settings(max_examples=50)
-    def test_positions_shape_invariant(
-        self, n_neurons, box_size, radius, initial_weight, seed
-    ):
+    @settings(deadline=None, max_examples=50)
+    def test_positions_shape_invariant(self, n_neurons, k_prop, seed):
         """Positions shape must always be (n_neurons, 3)."""
-        network = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=box_size,
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
+        network = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
 
         assert network.positions.shape == (n_neurons, 3)
 
@@ -75,105 +70,58 @@ class TestNetworkLinkMatrixProperties:
 
     @given(
         n_neurons=n_neurons_strategy,
-        box_size=st.tuples(box_dim_strategy, box_dim_strategy, box_dim_strategy),
-        radius=radius_strategy,
-        initial_weight=weight_strategy,
+        k_prop=k_prop_strategy,
         seed=seed_strategy,
     )
-    @settings(max_examples=50)
-    def test_link_matrix_shape_invariant(
-        self, n_neurons, box_size, radius, initial_weight, seed
-    ):
+    @settings(deadline=None, max_examples=50)
+    def test_link_matrix_shape_invariant(self, n_neurons, k_prop, seed):
         """Link matrix shape must always be (n_neurons, n_neurons)."""
-        network = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=box_size,
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
+        network = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
 
         assert network.link_matrix.shape == (n_neurons, n_neurons)
 
     @given(
         n_neurons=n_neurons_strategy,
-        box_size=st.tuples(box_dim_strategy, box_dim_strategy, box_dim_strategy),
-        radius=radius_strategy,
-        initial_weight=weight_strategy,
+        k_prop=k_prop_strategy,
         seed=seed_strategy,
     )
-    @settings(max_examples=50)
-    def test_no_self_connections_invariant(
-        self, n_neurons, box_size, radius, initial_weight, seed
-    ):
+    @settings(deadline=None, max_examples=50)
+    def test_no_self_connections_invariant(self, n_neurons, k_prop, seed):
         """Diagonal of link matrix must always be False (no self-loops)."""
-        network = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=box_size,
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
+        network = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
 
         diagonal = np.diag(network.link_matrix)
         assert not np.any(diagonal)
 
     @given(
-        n_neurons=st.integers(min_value=2, max_value=50),
-        box_size=st.tuples(box_dim_strategy, box_dim_strategy, box_dim_strategy),
-        radius=radius_strategy,
-        initial_weight=weight_strategy,
+        n_neurons=st.integers(min_value=5, max_value=30),
+        k_prop=k_prop_strategy,
         seed=seed_strategy,
     )
-    @settings(max_examples=30)
-    def test_link_matrix_matches_distance(
-        self, n_neurons, box_size, radius, initial_weight, seed
-    ):
-        """Links must exist iff distance <= radius."""
-        network = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=box_size,
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
+    @settings(deadline=None, max_examples=30)
+    def test_link_matrix_has_required_edges(self, n_neurons, k_prop, seed):
+        """Network has at least n_neurons edges (directed cycle)."""
+        network = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
 
-        for i in range(n_neurons):
-            for j in range(n_neurons):
-                if i != j:
-                    dist = np.linalg.norm(
-                        network.positions[i] - network.positions[j]
-                    )
-                    if network.link_matrix[i, j]:
-                        assert dist <= radius, (
-                            f"Link exists but distance {dist} > radius {radius}"
-                        )
-                    else:
-                        assert dist > radius, (
-                            f"No link but distance {dist} <= radius {radius}"
-                        )
+        # Directed network includes a cycle (n edges) plus additional edges
+        total_edges = np.sum(network.link_matrix)
+        assert total_edges >= n_neurons, (
+            f"Expected at least {n_neurons} edges (cycle), got {total_edges}"
+        )
 
     @given(
         n_neurons=n_neurons_strategy,
-        box_size=st.tuples(box_dim_strategy, box_dim_strategy, box_dim_strategy),
-        radius=radius_strategy,
-        initial_weight=weight_strategy,
+        k_prop=k_prop_strategy,
         seed=seed_strategy,
     )
-    @settings(max_examples=50)
-    def test_link_matrix_symmetric(
-        self, n_neurons, box_size, radius, initial_weight, seed
-    ):
-        """Link matrix must be symmetric (distance is symmetric)."""
-        network = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=box_size,
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
+    @settings(deadline=None, max_examples=50)
+    def test_link_matrix_directed(self, n_neurons, k_prop, seed):
+        """Directed network link matrix may have asymmetric connections."""
+        network = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
 
-        assert np.array_equal(network.link_matrix, network.link_matrix.T)
+        # Directed networks can have asymmetric links
+        # Verify shape is correct
+        assert network.link_matrix.shape == (n_neurons, n_neurons)
 
 
 class TestNetworkWeightMatrixProperties:
@@ -181,45 +129,25 @@ class TestNetworkWeightMatrixProperties:
 
     @given(
         n_neurons=n_neurons_strategy,
-        box_size=st.tuples(box_dim_strategy, box_dim_strategy, box_dim_strategy),
-        radius=radius_strategy,
-        initial_weight=weight_strategy,
+        k_prop=k_prop_strategy,
         seed=seed_strategy,
     )
-    @settings(max_examples=50)
-    def test_weight_matrix_shape_invariant(
-        self, n_neurons, box_size, radius, initial_weight, seed
-    ):
+    @settings(deadline=None, max_examples=50)
+    def test_weight_matrix_shape_invariant(self, n_neurons, k_prop, seed):
         """Weight matrix shape must always be (n_neurons, n_neurons)."""
-        network = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=box_size,
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
+        network = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
 
         assert network.weight_matrix.shape == (n_neurons, n_neurons)
 
     @given(
         n_neurons=n_neurons_strategy,
-        box_size=st.tuples(box_dim_strategy, box_dim_strategy, box_dim_strategy),
-        radius=radius_strategy,
-        initial_weight=weight_strategy,
+        k_prop=k_prop_strategy,
         seed=seed_strategy,
     )
-    @settings(max_examples=50)
-    def test_weights_zero_where_no_link(
-        self, n_neurons, box_size, radius, initial_weight, seed
-    ):
+    @settings(deadline=None, max_examples=50)
+    def test_weights_zero_where_no_link(self, n_neurons, k_prop, seed):
         """Weights must be zero where no structural link exists."""
-        network = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=box_size,
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
+        network = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
 
         # Where link_matrix is False, weight_matrix must be 0
         no_link_weights = network.weight_matrix[~network.link_matrix]
@@ -227,28 +155,18 @@ class TestNetworkWeightMatrixProperties:
 
     @given(
         n_neurons=n_neurons_strategy,
-        box_size=st.tuples(box_dim_strategy, box_dim_strategy, box_dim_strategy),
-        radius=radius_strategy,
-        initial_weight=st.floats(min_value=0.01, max_value=1.0, allow_nan=False),
+        k_prop=k_prop_strategy,
         seed=seed_strategy,
     )
-    @settings(max_examples=50)
-    def test_weights_initialized_where_link(
-        self, n_neurons, box_size, radius, initial_weight, seed
-    ):
-        """Weights must equal ±initial_weight where link exists."""
-        network = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=box_size,
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
+    @settings(deadline=None, max_examples=50)
+    def test_weights_initialized_where_link(self, n_neurons, k_prop, seed):
+        """Weights must be non-zero where link exists (beta distribution)."""
+        network = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
 
-        # Where link_matrix is True, weight_matrix should be ±initial_weight
+        # Where link_matrix is True, weight_matrix should be non-zero
         if np.any(network.link_matrix):
             linked_weights = network.weight_matrix[network.link_matrix]
-            assert np.allclose(np.abs(linked_weights), initial_weight)
+            assert np.all(linked_weights != 0)
 
 
 class TestNetworkReproducibilityProperties:
@@ -256,30 +174,14 @@ class TestNetworkReproducibilityProperties:
 
     @given(
         n_neurons=n_neurons_strategy,
-        box_size=st.tuples(box_dim_strategy, box_dim_strategy, box_dim_strategy),
-        radius=radius_strategy,
-        initial_weight=weight_strategy,
+        k_prop=k_prop_strategy,
         seed=seed_strategy,
     )
-    @settings(max_examples=30)
-    def test_same_seed_produces_identical_network(
-        self, n_neurons, box_size, radius, initial_weight, seed
-    ):
+    @settings(deadline=None, max_examples=30)
+    def test_same_seed_produces_identical_network(self, n_neurons, k_prop, seed):
         """Same parameters and seed must produce identical networks."""
-        net1 = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=box_size,
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
-        net2 = Network.create_random(
-            n_neurons=n_neurons,
-            box_size=box_size,
-            radius=radius,
-            initial_weight=initial_weight,
-            seed=seed,
-        )
+        net1 = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
+        net2 = create_network(n_neurons=n_neurons, k_prop=k_prop, seed=seed)
 
         assert np.array_equal(net1.positions, net2.positions)
         assert np.array_equal(net1.link_matrix, net2.link_matrix)
@@ -290,34 +192,28 @@ class TestNeuronTypeProperties:
     """Property tests for neuron type invariants."""
 
     @given(
-        n_neurons=st.integers(min_value=10, max_value=100),
-        excitatory_fraction=st.floats(min_value=0.0, max_value=1.0),
-        seed=st.integers(min_value=0, max_value=10000),
+        n_neurons=st.integers(min_value=10, max_value=50),
+        excitatory_fraction=excitatory_fraction_strategy,
+        seed=seed_strategy,
     )
-    @settings(max_examples=50)
+    @settings(deadline=None, max_examples=50)
     def test_neuron_types_length_matches_n_neurons(
         self, n_neurons, excitatory_fraction, seed
     ):
         """neuron_types array should have length n_neurons."""
-        network = Network.create_random(
+        network = create_network(
             n_neurons=n_neurons,
-            box_size=(10.0, 10.0, 10.0),
-            radius=2.0,
-            initial_weight=0.1,
             excitatory_fraction=excitatory_fraction,
             seed=seed,
         )
         assert len(network.neuron_types) == n_neurons
 
     @given(seed=st.integers(min_value=0, max_value=10000))
-    @settings(max_examples=50)
+    @settings(deadline=None, max_examples=50)
     def test_weight_signs_match_neuron_types(self, seed):
         """Excitatory neurons have non-negative weights, inhibitory non-positive."""
-        network = Network.create_random(
-            n_neurons=50,
-            box_size=(10.0, 10.0, 10.0),
-            radius=3.0,
-            initial_weight=0.1,
+        network = create_network(
+            n_neurons=30,
             excitatory_fraction=0.5,
             seed=seed,
         )

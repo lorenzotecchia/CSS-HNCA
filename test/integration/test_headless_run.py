@@ -23,17 +23,15 @@ class TestHeadlessSimulationWithTUI:
 
     def test_tui_logs_all_steps(self) -> None:
         """TUI should log each simulation step."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(5.0, 5.0, 5.0),
-            radius=2.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(
@@ -66,17 +64,15 @@ class TestHeadlessSimulationWithRecorder:
 
     def test_recorder_captures_all_steps(self) -> None:
         """Recorder should capture metrics for all steps."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(5.0, 5.0, 5.0),
-            radius=2.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(
@@ -109,17 +105,15 @@ class TestHeadlessSimulationWithRecorder:
 
     def test_recorder_saves_snapshots_at_interval(self) -> None:
         """Recorder should save NPZ snapshots at configured interval."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(5.0, 5.0, 5.0),
-            radius=2.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         learner = HebbianLearner(
@@ -168,17 +162,15 @@ class TestHeadlessSimulationWithBoth:
 
     def test_combined_tui_and_recorder(self) -> None:
         """Simulation should work with both TUI and recorder simultaneously."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(5.0, 5.0, 5.0),
-            radius=2.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(
@@ -224,17 +216,15 @@ class TestRecorderDataIntegrity:
 
     def test_recorded_firing_count_matches_simulation(self) -> None:
         """Recorded firing count should match actual simulation state."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=20,
-            box_size=(5.0, 5.0, 5.0),
-            radius=2.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=123,
         )
         state = NeuronState.create(
             n_neurons=20,
             threshold=0.5,
-            initial_firing_fraction=0.3,
+            firing_count=1,
             seed=123,
         )
         sim = Simulation(

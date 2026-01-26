@@ -21,8 +21,9 @@ class Network:
         weight_matrix: Shape (N, N) - synaptic weights (float)
         neuron_types: Shape (N,) - neuron type (True=excitatory, False=inhibitory)
         n_neurons: Number of neurons in the network
-        radius: Connectivity radius
+        radius: Connectivity radius used during construction
         box_size: Dimensions of the 3D volume
+        inhibitory_nodes: Shape (N,) - boolean array indicating inhibitory neurons
     """
 
     positions: ndarray
@@ -32,66 +33,115 @@ class Network:
     n_neurons: int
     radius: float
     box_size: tuple[float, float, float]
+    inhibitory_nodes: ndarray
 
     @classmethod
-    def create_random(
+    def create_beta_weighted_directed(
         cls,
         n_neurons: int,
-        box_size: tuple[float, float, float],
-        radius: float,
-        initial_weight: float,
+        k_prop: float,
+        a: float = 2.0,
+        b: float = 6.0,
+        excitatory_fraction: float = 0.8,
+        weight_min: float = 0.0,
+        weight_max: float = 1.0,
+        weight_min_inh: float = -1.0,
+        weight_max_inh: float = 0.0,
         seed: int | None = None,
         backend: ArrayBackend | None = None,
-        excitatory_fraction: float = 0.8,
     ) -> "Network":
-        """Create a network with random neuron positions.
+        """Create a directed network with beta-distributed weights.
+
+        Initializes with a directed cycle, then adds edges based on 3D proximity,
+        with weights sampled from beta(a, b) distribution.
 
         Args:
-            n_neurons: Number of neurons to create
-            box_size: (x, y, z) dimensions of the 3D volume
-            radius: Maximum distance for structural connectivity
-            initial_weight: Initial synaptic weight for connected neurons
+            n_neurons: Number of neurons (N >= 3)
+            k_prop: Average degree proportion (2/N <= k_prop <= 1-1/N)
+            a: Beta distribution parameter (a > 0)
+            b: Beta distribution parameter (b > 0)
+            excitatory_fraction: Fraction of neurons that are excitatory (0.0 to 1.0)
+            weight_min: Minimum weight for excitatory neurons
+            weight_max: Maximum weight for excitatory neurons
+            weight_min_inh: Minimum weight for inhibitory neurons
+            weight_max_inh: Maximum weight for inhibitory neurons
             seed: Random seed for reproducibility
-            backend: Array computation backend (defaults to NumPyBackend)
-            excitatory_fraction: Fraction of neurons that are excitatory (default 0.8)
+            backend: Array computation backend (unused, kept for compatibility)
 
         Returns:
-            Network with randomly positioned neurons and distance-based connectivity
+            Network instance with directed connectivity and beta weights
         """
-        if not 0.0 <= excitatory_fraction <= 1.0:
+        if n_neurons < 3:
+            raise ValueError("n_neurons must be >= 3")
+        if not (2 / n_neurons <= k_prop <= 1 - 1 / n_neurons):
+            raise ValueError(f"k_prop must be in [{2/n_neurons:.3f}, {1-1/n_neurons:.3f}]")
+        if a <= 0 or b <= 0:
+            raise ValueError("a and b must be > 0")
+        if not (0.0 <= excitatory_fraction <= 1.0):
             raise ValueError("excitatory_fraction must be in [0.0, 1.0]")
 
-        if backend is None:
-            backend = get_backend()
-
-        # Generate random 3D positions within box bounds
-        # Derive different seeds for each dimension to maintain independence
-        if seed is not None:
-            seed_x, seed_y, seed_z = seed, seed + 1, seed + 2
-        else:
-            seed_x = seed_y = seed_z = None
-
-        x_pos = backend.random_uniform(0, box_size[0], (n_neurons,), seed_x)
-        y_pos = backend.random_uniform(0, box_size[1], (n_neurons,), seed_y)
-        z_pos = backend.random_uniform(0, box_size[2], (n_neurons,), seed_z)
-
-        # Stack into (N, 3) array - use numpy stack since result needs to be numpy for dataclass
-        positions = np.column_stack([backend.to_numpy(x_pos), backend.to_numpy(y_pos), backend.to_numpy(z_pos)])
-
-        # Distance computation - keep as numpy (initialization code, not hot path)
-        # This is acceptable since Network creation is one-time cost
-        diff = positions[:, np.newaxis, :] - positions[np.newaxis, :, :]
-        distances = np.sqrt(np.sum(diff**2, axis=2))
-
-        link_matrix = (distances <= radius) & (distances > 0)
-
-        # Assign neuron types: True = excitatory, False = inhibitory
         rng = np.random.default_rng(seed)
-        neuron_types = rng.random(n_neurons) < excitatory_fraction
 
-        # Weight matrix: sign depends on presynaptic neuron type
-        weight_signs = np.where(neuron_types, 1.0, -1.0)  # (N,)
-        weight_matrix = np.where(link_matrix, initial_weight * weight_signs[:, np.newaxis], 0.0)
+        # 1. Initialize directed cycle (guarantees strong connectivity)
+        link_matrix = np.zeros((n_neurons, n_neurons), dtype=bool)
+        for i in range(n_neurons):
+            link_matrix[i, (i + 1) % n_neurons] = True
+
+        # 2. Random 3D positions in [0,1]^3
+        positions = rng.uniform(0, 1, (n_neurons, 3))
+
+        # 3. Find possible additional edges within increasing radius
+        target_additional_edges = round(k_prop * n_neurons**2) - n_neurons
+        possible_edges = []
+        r = 0.01
+        max_r = np.sqrt(3)
+
+        while len(possible_edges) < target_additional_edges and r <= max_r:
+            possible_edges = []
+            for i in range(n_neurons):
+                for j in range(n_neurons):
+                    if i == j or link_matrix[i, j]:
+                        continue
+                    dist = np.linalg.norm(positions[i] - positions[j])
+                    if dist <= r:
+                        possible_edges.append((i, j))
+            r += 0.01
+
+        # 4. Sample edges to add
+        if len(possible_edges) >= target_additional_edges:
+            sampled_indices = rng.choice(
+                len(possible_edges), size=target_additional_edges, replace=False
+            )
+            for idx in sampled_indices:
+                i, j = possible_edges[idx]
+                link_matrix[i, j] = True
+        else:
+            for i, j in possible_edges:
+                link_matrix[i, j] = True
+
+        # 5. Assign beta-distributed weights to all edges
+        weight_matrix = np.zeros((n_neurons, n_neurons))
+        edge_mask = link_matrix
+        n_edges = np.sum(edge_mask)
+        if n_edges > 0:
+            weight_matrix[edge_mask] = rng.beta(a, b, size=int(n_edges))
+
+        # 6. Assign neuron types based on excitatory_fraction
+        inhibitory_nodes = rng.random(n_neurons) >= excitatory_fraction
+        neuron_types = ~inhibitory_nodes  # True = excitatory
+
+        # 7. Negate weights for inhibitory presynaptic neurons
+        inh_mask = inhibitory_nodes[:, np.newaxis] & link_matrix
+        weight_matrix[inh_mask] = -np.abs(weight_matrix[inh_mask])
+
+        # 8. Vectorized weight clamping per neuron type
+        min_bounds = np.where(neuron_types, weight_min, weight_min_inh)[:, np.newaxis]
+        max_bounds = np.where(neuron_types, weight_max, weight_max_inh)[:, np.newaxis]
+        weight_matrix = np.where(
+            link_matrix,
+            np.clip(weight_matrix, min_bounds, max_bounds),
+            0.0,
+        )
 
         return cls(
             positions=positions,
@@ -99,6 +149,7 @@ class Network:
             weight_matrix=weight_matrix,
             neuron_types=neuron_types,
             n_neurons=n_neurons,
-            radius=radius,
-            box_size=box_size,
+            radius=r,
+            box_size=(1.0, 1.0, 1.0),
+            inhibitory_nodes=inhibitory_nodes,
         )

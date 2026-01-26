@@ -17,17 +17,15 @@ class TestSimulationCoreIntegration:
     def test_simulation_uses_network_weights_for_state_update(self):
         """Simulation.step() should use network weights to compute firing."""
         # Create a small deterministic network
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=5,
-            box_size=(10.0, 10.0, 10.0),
-            radius=10.0,  # Large radius so all neurons connect
-            initial_weight=0.3,
+            k_prop=0.6,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=5,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(
@@ -50,18 +48,16 @@ class TestSimulationCoreIntegration:
 
     def test_state_update_formula(self):
         """Verify state update follows: v = W^T · s, fire if v >= γ."""
-        # Create minimal 3-neuron network
-        network = Network.create_random(
+        # Create minimal 3-neuron network (for n=3, k_prop must be 2/3)
+        network = Network.create_beta_weighted_directed(
             n_neurons=3,
-            box_size=(10.0, 10.0, 10.0),
-            radius=10.0,
-            initial_weight=0.0,  # Start with zero weights
+            k_prop=2/3,  # Only valid k_prop for n=3
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=3,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(
@@ -90,17 +86,15 @@ class TestSimulationCoreIntegration:
 
     def test_previous_state_tracked_for_stdp(self):
         """Simulation should track previous firing for STDP learning."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=5,
-            box_size=(10.0, 10.0, 10.0),
-            radius=10.0,
-            initial_weight=0.1,
+            k_prop=0.6,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=5,
             threshold=0.3,
-            initial_firing_fraction=0.4,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(
@@ -121,17 +115,15 @@ class TestSimulationCoreIntegration:
 
     def test_network_and_state_dimensions_must_match(self):
         """Network n_neurons must match NeuronState size."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=5,  # Mismatched!
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
 
@@ -150,17 +142,15 @@ class TestSimulationDynamics:
     def test_activity_can_propagate(self):
         """Activity from firing neurons should propagate to neighbors."""
         # Dense network with high weights
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=20,
-            box_size=(5.0, 5.0, 5.0),  # Small box = dense connections
-            radius=10.0,
-            initial_weight=0.2,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=20,
             threshold=0.3,
-            initial_firing_fraction=0.1,  # Start with some activity
+            firing_count=1,  # Start with some activity
             seed=42,
         )
         sim = Simulation(
@@ -184,17 +174,15 @@ class TestSimulationDynamics:
 
     def test_isolated_neuron_stays_quiet(self):
         """A neuron with no incoming connections should not fire."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(100.0, 100.0, 100.0),  # Very sparse
-            radius=1.0,  # Very small radius = likely isolated neurons
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,  # No initial firing
             seed=42,
         )
         sim = Simulation(
@@ -215,17 +203,15 @@ class TestSimulationConsistency:
     def test_same_initial_conditions_same_evolution(self):
         """Same initial conditions should produce same evolution."""
         def create_sim(seed):
-            network = Network.create_random(
+            network = Network.create_beta_weighted_directed(
                 n_neurons=15,
-                box_size=(10.0, 10.0, 10.0),
-                radius=5.0,
-                initial_weight=0.15,
+                k_prop=0.2,
                 seed=seed,
             )
             state = NeuronState.create(
                 n_neurons=15,
                 threshold=0.4,
-                initial_firing_fraction=0.2,
+                firing_count=1,
                 seed=seed,
             )
             return Simulation(
@@ -251,17 +237,15 @@ class TestSimulationConsistency:
 
     def test_reset_restores_initial_conditions(self):
         """Reset should restore to initial-like state."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(

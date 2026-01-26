@@ -28,3 +28,12 @@ User selected to work on Phase 7 with TDD. Modules: `visualization/tui_logger.py
 
 ## [2026-01-22 18:21] Phase 6: Matplotlib Analytics
 User selected Phase 6. Note: Visualization tests skipped per plan - tested by running manually.
+## [2026-01-23 12:18] Query
+I want the visualization to be rotational with mouse-drag orbiting and uniform node sizes (orthographic).
+
+## [2026-01-23 13:12] Query
+Add zoom capability to the pygame visualization.
+
+## [2026-01-23 13:15] Query
+Increase window size and stack control text at bottom-left.
+

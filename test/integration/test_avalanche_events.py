@@ -18,7 +18,7 @@ class TestAvalancheEventBusIntegration:
 
     def test_detector_receives_step_events(self):
         """Detector should receive step events from event bus."""
-        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1)
+        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1, burn_in=0)
         bus = EventBus()
         
         # Subscribe detector's record_step to step events
@@ -36,18 +36,16 @@ class TestAvalancheEventBusIntegration:
 
     def test_detector_with_real_simulation(self):
         """Detector should work with real simulation events."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=50,
-            box_size=(10.0, 10.0, 10.0),
-            radius=3.0,
-            initial_weight=0.3,
+            k_prop=0.2,
             seed=42,
         )
         
         state = NeuronState.create(
             n_neurons=50,
             threshold=0.5,
-            initial_firing_fraction=0.3,
+            firing_count=1,
             seed=42,
             leak_rate=0.2,
             reset_potential=0.8,
@@ -85,18 +83,16 @@ class TestAvalancheLIFInteraction:
 
     def test_lif_creates_avalanche_patterns(self):
         """LIF dynamics should create avalanche-like activity patterns."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=100,
-            box_size=(10.0, 10.0, 10.0),
-            radius=2.5,
-            initial_weight=0.2,
+            k_prop=0.2,
             seed=42,
         )
         
         state = NeuronState.create(
             n_neurons=100,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
             leak_rate=0.15,
             reset_potential=0.7,

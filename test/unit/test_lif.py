@@ -25,7 +25,7 @@ class TestMembranePotentialInitialization:
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
         )
         assert hasattr(state, "membrane_potential")
@@ -35,7 +35,7 @@ class TestMembranePotentialInitialization:
         state = NeuronState.create(
             n_neurons=25,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
         )
         assert state.membrane_potential.shape == (25,)
@@ -45,7 +45,7 @@ class TestMembranePotentialInitialization:
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
         )
         assert np.issubdtype(state.membrane_potential.dtype, np.floating)
@@ -55,7 +55,7 @@ class TestMembranePotentialInitialization:
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
         )
         assert np.all(state.membrane_potential == 0.0)
@@ -72,7 +72,7 @@ class TestLIFLeakDynamics:
         state = NeuronState.create(
             n_neurons=5,
             threshold=1.0,  # High threshold so no firing
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
             leak_rate=0.1,
         )
@@ -92,7 +92,7 @@ class TestLIFLeakDynamics:
         state = NeuronState.create(
             n_neurons=5,
             threshold=1.0,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
             leak_rate=0.0,
         )
@@ -116,7 +116,7 @@ class TestLIFIntegration:
         state = NeuronState.create(
             n_neurons=3,
             threshold=1.0,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
             leak_rate=0.0,  # No leak for simple test
         )
@@ -134,7 +134,7 @@ class TestLIFIntegration:
         state = NeuronState.create(
             n_neurons=1,
             threshold=1.0,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
             leak_rate=0.0,
         )
@@ -162,7 +162,7 @@ class TestLIFFiring:
         state = NeuronState.create(
             n_neurons=3,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
             leak_rate=0.0,
         )
@@ -182,7 +182,7 @@ class TestLIFFiring:
         state = NeuronState.create(
             n_neurons=1,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
             leak_rate=0.0,
         )
@@ -212,7 +212,7 @@ class TestLIFReset:
         state = NeuronState.create(
             n_neurons=1,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
             leak_rate=0.0,
             reset_potential=0.5,
@@ -231,7 +231,7 @@ class TestLIFReset:
         state = NeuronState.create(
             n_neurons=1,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
             leak_rate=0.0,
             reset_potential=1.0,  # Full reset
@@ -259,7 +259,7 @@ class TestLIFReset:
         state = NeuronState.create(
             n_neurons=2,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
             leak_rate=0.0,
             reset_potential=1.0,
@@ -286,7 +286,7 @@ class TestLIFConfigParameters:
             NeuronState.create(
                 n_neurons=10,
                 threshold=0.5,
-                initial_firing_fraction=0.0,
+                firing_count=0,
                 leak_rate=-0.1,  # Invalid
             )
         
@@ -294,7 +294,7 @@ class TestLIFConfigParameters:
             NeuronState.create(
                 n_neurons=10,
                 threshold=0.5,
-                initial_firing_fraction=0.0,
+                firing_count=0,
                 leak_rate=1.5,  # Invalid
             )
 
@@ -304,7 +304,7 @@ class TestLIFConfigParameters:
             NeuronState.create(
                 n_neurons=10,
                 threshold=0.5,
-                initial_firing_fraction=0.0,
+                firing_count=0,
                 reset_potential=-0.5,  # Invalid
             )
 
@@ -317,7 +317,7 @@ class TestLIFFullDynamics:
         state = NeuronState.create(
             n_neurons=1,
             threshold=1.0,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
             leak_rate=0.1,
             reset_potential=1.0,

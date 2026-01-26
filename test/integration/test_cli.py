@@ -27,18 +27,24 @@ seed = 42
 
 [network]
 n_neurons = 50
-box_size = [10.0, 10.0, 10.0]
-radius = 2.5
-initial_weight = 0.1
+firing_count = 1
+leak_rate = 0.1
+reset_potential = 0.5
+excitatory_fraction = 0.8
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 0.1
+weight_min_inh = -1.0
+weight_max_inh = 0.0
+k_prop = 0.2
+beta_a = 2.0
+beta_b = 6.0
 
 [learning]
 threshold = 0.5
 learning_rate = 0.01
 forgetting_rate = 0.005
 decay_alpha = 0.001
+oja_alpha = 0.002
 
 [visualization]
 pygame_enabled = false
@@ -58,17 +64,14 @@ fps = 30
         """Loaded config should create a valid Network."""
         config = load_config(valid_config_file)
 
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=config.network.n_neurons,
-            box_size=config.network.box_size,
-            radius=config.network.radius,
-            initial_weight=config.network.initial_weight,
+            k_prop=config.network.k_prop,
             seed=config.seed,
         )
 
-        assert network.n_neurons == 50
-        assert network.box_size == (10.0, 10.0, 10.0)
-        assert network.radius == 2.5
+        assert network.n_neurons == config.network.n_neurons
+        assert network.box_size == (1.0, 1.0, 1.0)  # unit cube for beta networks
 
     def test_config_creates_valid_neuron_state(self, valid_config_file):
         """Loaded config should create a valid NeuronState."""
@@ -77,28 +80,26 @@ fps = 30
         state = NeuronState.create(
             n_neurons=config.network.n_neurons,
             threshold=config.learning.threshold,
-            initial_firing_fraction=config.network.initial_firing_fraction,
+            firing_count=config.network.firing_count,
             seed=config.seed,
         )
 
-        assert state.firing.shape[0] == 50
-        assert state.threshold == 0.5
+        assert state.firing.shape[0] == config.network.n_neurons
+        assert state.threshold == config.learning.threshold
 
     def test_config_creates_valid_simulation(self, valid_config_file):
         """Loaded config should create a working Simulation."""
         config = load_config(valid_config_file)
 
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=config.network.n_neurons,
-            box_size=config.network.box_size,
-            radius=config.network.radius,
-            initial_weight=config.network.initial_weight,
+            k_prop=config.network.k_prop,
             seed=config.seed,
         )
         state = NeuronState.create(
             n_neurons=config.network.n_neurons,
             threshold=config.learning.threshold,
-            initial_firing_fraction=config.network.initial_firing_fraction,
+            firing_count=config.network.firing_count,
             seed=config.seed,
         )
         simulation = Simulation(
@@ -130,7 +131,7 @@ radius = 2.5
 initial_weight = 0.1
 weight_min = 0.0
 weight_max = 1.0
-initial_firing_fraction = 0.1
+firing_count=1
 
 [learning]
 threshold = 0.5

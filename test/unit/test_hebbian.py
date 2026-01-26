@@ -12,32 +12,20 @@ import numpy as np
 import pytest
 
 from src.learning.hebbian import HebbianLearner
+from src.learning.weight_update import WeightUpdater
 
 
-class TestHebbianLearnerCreation:
-    """Tests for HebbianLearner initialization."""
+class TestWeightUpdaterCreation:
+    """Tests for WeightUpdater initialization."""
 
     def test_create_with_rates(self):
-        """Should create learner with learning and forgetting rates."""
-        learner = HebbianLearner(
+        """Should create updater with learning and forgetting rates."""
+        updater = WeightUpdater(
             learning_rate=0.01,
             forgetting_rate=0.005,
-            weight_min=0.0,
-            weight_max=1.0,
         )
-        assert learner.learning_rate == 0.01
-        assert learner.forgetting_rate == 0.005
-
-    def test_create_with_bounds(self):
-        """Should store weight bounds."""
-        learner = HebbianLearner(
-            learning_rate=0.01,
-            forgetting_rate=0.005,
-            weight_min=0.1,
-            weight_max=0.9,
-        )
-        assert learner.weight_min == 0.1
-        assert learner.weight_max == 0.9
+        assert updater.learning_rate == 0.01
+        assert updater.forgetting_rate == 0.005
 
 
 class TestLTPLongTermPotentiation:
@@ -45,11 +33,9 @@ class TestLTPLongTermPotentiation:
 
     def test_ltp_increases_weight(self):
         """Weight should increase by learning_rate for causal firing."""
-        learner = HebbianLearner(
+        updater = WeightUpdater(
             learning_rate=0.1,
             forgetting_rate=0.05,
-            weight_min=0.0,
-            weight_max=1.0,
         )
         # A fired at t (prev), B fires at t+1 (current)
         # Connection A->B should be strengthened
@@ -66,18 +52,17 @@ class TestLTPLongTermPotentiation:
         firing_prev = np.array([True, False, False])   # A fired at t
         firing_current = np.array([False, True, False])  # B fires at t+1
 
-        new_weights = learner.apply(weights, link_matrix, firing_prev, firing_current)
+        inhibitory_nodes = np.array([False, False, False])
+        new_weights = updater.apply(weights, link_matrix, firing_prev, firing_current, inhibitory_nodes)
 
         # A->B should increase by 0.1
         assert new_weights[0, 1] == pytest.approx(0.6)
 
     def test_ltp_only_where_link_exists(self):
         """LTP should only apply where structural link exists."""
-        learner = HebbianLearner(
+        updater = WeightUpdater(
             learning_rate=0.1,
             forgetting_rate=0.05,
-            weight_min=0.0,
-            weight_max=1.0,
         )
         weights = np.array([
             [0.0, 0.0, 0.0],
@@ -91,8 +76,9 @@ class TestLTPLongTermPotentiation:
         ])
         firing_prev = np.array([True, False, False])
         firing_current = np.array([False, True, False])
+        inhibitory_nodes = np.array([False, False, False])
 
-        new_weights = learner.apply(weights, link_matrix, firing_prev, firing_current)
+        new_weights = updater.apply(weights, link_matrix, firing_prev, firing_current, inhibitory_nodes)
 
         # No links, no changes
         assert np.all(new_weights == 0)
@@ -451,11 +437,11 @@ class TestPerTypeWeightBounds:
         )
         weights = np.array([[0.0, 0.15], [0.0, 0.0]])
         link_matrix = np.array([[False, True], [False, False]])
-        neuron_types = np.array([True, True])  # Both excitatory
+        inhibitory_nodes = np.array([False, False])  # Both excitatory
         firing_prev = np.array([True, False])
         firing_curr = np.array([False, True])
 
-        new_weights = learner.apply(weights, link_matrix, firing_prev, firing_curr, neuron_types)
+        new_weights = learner.apply(weights, link_matrix, firing_prev, firing_curr, inhibitory_nodes)
         assert new_weights[0, 1] <= 0.2  # Clamped to max
 
     def test_apply_enforces_inhibitory_bounds(self):
@@ -470,11 +456,11 @@ class TestPerTypeWeightBounds:
         )
         weights = np.array([[0.0, -0.1], [0.0, 0.0]])
         link_matrix = np.array([[False, True], [False, False]])
-        neuron_types = np.array([False, True])  # First inhibitory
+        inhibitory_nodes = np.array([True, False])  # First inhibitory
         firing_prev = np.array([True, False])
         firing_curr = np.array([False, True])
 
-        new_weights = learner.apply(weights, link_matrix, firing_prev, firing_curr, neuron_types)
+        new_weights = learner.apply(weights, link_matrix, firing_prev, firing_curr, inhibitory_nodes)
         assert -0.2 <= new_weights[0, 1] <= 0.0
 
     def test_apply_backward_compatible_without_neuron_types(self):

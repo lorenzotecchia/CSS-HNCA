@@ -319,9 +319,19 @@ class TestExcitatoryInhibitoryBounds:
         rng = np.random.default_rng(seed)
         n = 20
 
-        neuron_types = rng.random(n) < 0.5
-        # Initialize with signed weights based on type
-        weights = np.where(neuron_types[:, None], 0.1, -0.1) * rng.random((n, n))
+        # inhibitory_nodes[i] = True means neuron i is inhibitory
+        inhibitory_nodes = rng.random(n) < 0.5
+        # Initialize weights with correct signs based on neuron type
+        # Excitatory neurons have positive outgoing weights, inhibitory have negative
+        weights = np.zeros((n, n))
+        for i in range(n):
+            if not inhibitory_nodes[i]:  # excitatory
+                # Excitatory: positive weights in [0, 0.3]
+                weights[i, :] = 0.1 * rng.random(n)
+            else:  # inhibitory
+                # Inhibitory: negative weights in [-0.3, 0]
+                weights[i, :] = -0.1 * rng.random(n)
+        
         link_matrix = rng.random((n, n)) < 0.3
         np.fill_diagonal(link_matrix, False)
 
@@ -338,13 +348,13 @@ class TestExcitatoryInhibitoryBounds:
         firing_curr = rng.random(n) < 0.3
 
         new_weights = learner.apply(
-            weights, link_matrix, firing_prev, firing_curr, neuron_types
+            weights, link_matrix, firing_prev, firing_curr, inhibitory_nodes
         )
 
         for i in range(n):
-            if neuron_types[i]:
+            if not inhibitory_nodes[i]:  # excitatory
                 assert np.all(new_weights[i] >= 0.0)
                 assert np.all(new_weights[i] <= 0.3)
-            else:
+            else:  # inhibitory
                 assert np.all(new_weights[i] >= -0.3)
                 assert np.all(new_weights[i] <= 0.0)

@@ -23,7 +23,8 @@ from src.config.loader import load_config
 from src.core.network import Network
 from src.core.neuron_state import NeuronState
 from src.core.simulation import Simulation
-from src.learning.hebbian import HebbianLearner
+from src.learning.weight_update import WeightUpdater
+from src.visualization.avalanche_controller import AvalancheController
 
 DEFAULT_CONFIG_PATH = Path("config/default.toml")
 WINDOW_SIZE = (1500, 800)
@@ -36,9 +37,9 @@ NODE_FIRE = (220, 40, 40)
 NODE_OFF = (0, 0, 0)
 NODE_OUTLINE = (60, 60, 60)
 
-EDGE_MIN_ALPHA = 255
-EDGE_MAX_ALPHA = 255
-EDGE_THICKNESS = 2
+EDGE_MIN_ALPHA = 40
+EDGE_MAX_ALPHA = 160
+EDGE_THICKNESS = 1
 NODE_RADIUS = 8
 ROTATE_SENSITIVITY = 0.006
 ZOOM_SENSITIVITY = 0.1
@@ -64,11 +65,20 @@ def weight_to_color(weight: float, weight_min: float, weight_max: float) -> tupl
     u = clamp01(u)
 
     alpha = int(EDGE_MIN_ALPHA + u * (EDGE_MAX_ALPHA - EDGE_MIN_ALPHA))
-    base = 200
-    shade = int(base * (1.0 - u))
-    r = shade
-    g = shade
-    b = shade
+    # Blue-teal-yellow gradient from features branch
+    low = (40, 80, 200)
+    mid = (40, 180, 160)
+    high = (240, 220, 80)
+    if u < 0.5:
+        t = u / 0.5
+        r = int(low[0] + (mid[0] - low[0]) * t)
+        g = int(low[1] + (mid[1] - low[1]) * t)
+        b = int(low[2] + (mid[2] - low[2]) * t)
+    else:
+        t = (u - 0.5) / 0.5
+        r = int(mid[0] + (high[0] - mid[0]) * t)
+        g = int(mid[1] + (high[1] - mid[1]) * t)
+        b = int(mid[2] + (high[2] - mid[2]) * t)
     return (r, g, b, alpha)
 
 
@@ -134,28 +144,38 @@ def draw_arrowhead(
 def create_simulation(config_path: Path, seed: int | None) -> Simulation:
     config = load_config(config_path)
 
-    network = Network.create_random(
+    network = Network.create_beta_weighted_directed(
         n_neurons=config.network.n_neurons,
-        box_size=config.network.box_size,
-        radius=config.network.radius,
-        initial_weight=config.network.initial_weight,
+        k_prop=config.network.k_prop,
+        a=config.network.beta_a,
+        b=config.network.beta_b,
+        excitatory_fraction=config.network.excitatory_fraction,
+        weight_min=config.network.weight_min,
+        weight_max=config.network.weight_max,
+        weight_min_inh=config.network.weight_min_inh,
+        weight_max_inh=config.network.weight_max_inh,
         seed=seed,
     )
 
     state = NeuronState.create(
         n_neurons=config.network.n_neurons,
         threshold=config.learning.threshold,
-        initial_firing_fraction=config.network.initial_firing_fraction,
+        firing_count=config.network.firing_count,
         seed=seed,
         leak_rate=config.network.leak_rate,
         reset_potential=config.network.reset_potential,
     )
 
-    learner = HebbianLearner(
+    learner = WeightUpdater(
+        enable_stdp=True,
+        enable_oja=False,
+        enable_homeostatic=False,
         learning_rate=config.learning.learning_rate,
         forgetting_rate=config.learning.forgetting_rate,
         weight_min=config.network.weight_min,
         weight_max=config.network.weight_max,
+        weight_min_inh=config.network.weight_min_inh,
+        weight_max_inh=config.network.weight_max_inh,
         decay_alpha=config.learning.decay_alpha,
         oja_alpha=config.learning.oja_alpha,
     )
@@ -176,6 +196,9 @@ def main(config_path: Path = DEFAULT_CONFIG_PATH, show_plots: bool = True) -> No
     current_seed = base_seed
 
     simulation = create_simulation(config_path, current_seed)
+    avalanche_controller = AvalancheController(
+        simulation, n_neurons=config.network.n_neurons, stimulus_count=1
+    )
 
     # Initialize matplotlib analytics if requested
     analytics_view = None
@@ -215,6 +238,7 @@ def main(config_path: Path = DEFAULT_CONFIG_PATH, show_plots: bool = True) -> No
         simulation.step()
         if analytics_view is not None:
             analytics_view.update_from_simulation(simulation)
+        avalanche_controller.record_step(simulation.time_step, simulation.firing_count)
 
     def do_reset() -> None:
         nonlocal reset_index, current_seed, projected_nodes, edge_indices, running_sim, accumulator
@@ -286,6 +310,7 @@ def main(config_path: Path = DEFAULT_CONFIG_PATH, show_plots: bool = True) -> No
             while accumulator >= step_dt:
                 do_step()
                 accumulator -= step_dt
+            avalanche_controller.update(dt)
 
         screen.fill(BG)
 

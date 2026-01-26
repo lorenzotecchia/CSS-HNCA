@@ -16,17 +16,15 @@ class TestSimulationEmitsStepEvents:
 
     def test_step_emits_step_event(self) -> None:
         """Each step should emit a StepEvent with correct data."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         bus = EventBus()
@@ -54,17 +52,15 @@ class TestSimulationEmitsStepEvents:
 
     def test_multiple_steps_emit_multiple_events(self) -> None:
         """Multiple steps should emit corresponding StepEvents."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         bus = EventBus()
@@ -91,17 +87,15 @@ class TestSimulationEmitsResetEvents:
 
     def test_reset_emits_reset_event(self) -> None:
         """Reset should emit a ResetEvent with seed."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         bus = EventBus()
@@ -123,17 +117,15 @@ class TestSimulationEmitsResetEvents:
 
     def test_reset_without_seed_emits_event_with_none(self) -> None:
         """Reset without seed should emit ResetEvent with seed=None."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         bus = EventBus()
@@ -159,17 +151,15 @@ class TestSimulationWithoutEventBus:
 
     def test_step_works_without_event_bus(self) -> None:
         """Simulation should work normally if no event bus provided."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(

@@ -17,7 +17,7 @@ from src.core.neuron_state import NeuronState
 
 if TYPE_CHECKING:
     from src.events.bus import EventBus
-    from src.learning.hebbian import HebbianLearner
+    from src.learning.weight_update import WeightUpdater
 
 
 class SimulationState(Enum):
@@ -45,15 +45,14 @@ class Simulation:
     state: NeuronState
     learning_rate: float
     forgetting_rate: float
-    learner: HebbianLearner | None = None
+    learner: WeightUpdater | None = None
     event_bus: EventBus | None = None
     backend: ArrayBackend = field(default_factory=get_backend)
     time_step: int = field(default=0, init=False)
     sim_state: SimulationState = field(default=SimulationState.STOPPED, init=False)
 
     # Store initial config for reset
-    _initial_weight: float = field(default=0.1, init=False, repr=False)
-    _initial_firing_fraction: float = field(default=0.1, init=False, repr=False)
+    _initial_firing_count: int = field(default=0, init=False, repr=False)
 
     def __post_init__(self) -> None:
         """Validate that network and state dimensions match."""
@@ -63,12 +62,7 @@ class Simulation:
                 f"{self.state.firing.shape[0]} neurons"
             )
         # Store initial config for potential reset
-        # Infer from current state (approximate)
-        if np.any(self.network.link_matrix):
-            linked_weights = self.network.weight_matrix[self.network.link_matrix]
-            if len(linked_weights) > 0:
-                self._initial_weight = float(np.mean(linked_weights))
-        self._initial_firing_fraction = float(np.mean(self.state.firing))
+        self._initial_firing_count = int(np.sum(self.state.firing))
 
     def step(self) -> None:
         """Advance simulation by one time step.
@@ -95,7 +89,7 @@ class Simulation:
                 link_matrix=self.network.link_matrix,
                 firing_prev=firing_prev,
                 firing_current=self.state.firing,
-                neuron_types=getattr(self.network, "neuron_types", None),
+                inhibitory_nodes=self.network.inhibitory_nodes,
             )
             self.network.weight_matrix[:] = new_weights
 
@@ -124,24 +118,11 @@ class Simulation:
         self.sim_state = SimulationState.STOPPED
 
         if seed is not None:
-            # Regenerate network with new seed
-            new_network = Network.create_random(
-                n_neurons=self.network.n_neurons,
-                box_size=self.network.box_size,
-                radius=self.network.radius,
-                initial_weight=self._initial_weight,
-                seed=seed,
-            )
-            # Update in place
-            self.network.positions[:] = new_network.positions
-            self.network.link_matrix[:] = new_network.link_matrix
-            self.network.weight_matrix[:] = new_network.weight_matrix
-
             # Regenerate neuron state (preserving LIF parameters)
             new_state = NeuronState.create(
                 n_neurons=self.network.n_neurons,
                 threshold=self.state.threshold,
-                initial_firing_fraction=self._initial_firing_fraction,
+                firing_count=self._initial_firing_count,
                 seed=seed,
                 leak_rate=self.state.leak_rate,
                 reset_potential=self.state.reset_potential,

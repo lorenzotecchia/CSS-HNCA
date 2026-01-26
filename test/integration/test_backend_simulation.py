@@ -21,17 +21,15 @@ class TestSimulationWithBackend:
         """Simulation arrays should be compatible with backend operations."""
         backend = get_backend()
 
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(
@@ -56,17 +54,15 @@ class TestSimulationWithBackend:
         """Backend matmul should produce same results as direct numpy."""
         backend = get_backend()
 
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.3,
+            firing_count=1,
             seed=42,
         )
 
@@ -87,17 +83,15 @@ class TestSimulationWithBackend:
         """Simulation with Hebbian learning should maintain valid weights."""
         from src.learning.hebbian import HebbianLearner
 
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.4,
-            initial_firing_fraction=0.3,
+            firing_count=1,
             seed=42,
         )
         learner = HebbianLearner(
@@ -130,17 +124,15 @@ class TestBackendConsistency:
     def test_multiple_simulations_same_seed(self):
         """Same seed should produce same results."""
         def create_sim(seed):
-            network = Network.create_random(
+            network = Network.create_beta_weighted_directed(
                 n_neurons=15,
-                box_size=(10.0, 10.0, 10.0),
-                radius=5.0,
-                initial_weight=0.1,
+                k_prop=0.2,
                 seed=seed,
             )
             state = NeuronState.create(
                 n_neurons=15,
                 threshold=0.5,
-                initial_firing_fraction=0.2,
+                firing_count=1,
                 seed=seed,
             )
             return Simulation(
@@ -166,11 +158,9 @@ class TestBackendConsistency:
         """Backend arrays should be convertible to numpy."""
         backend = get_backend()
 
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
 
@@ -193,7 +183,7 @@ class TestBackendWithAnalytics:
         state = NeuronState.create(
             n_neurons=20,
             threshold=0.5,
-            initial_firing_fraction=0.3,
+            firing_count=1,
             seed=42,
         )
 
@@ -209,11 +199,9 @@ class TestBackendWithAnalytics:
         """Backend mean should compute average weight correctly."""
         backend = get_backend()
 
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=20,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
 
@@ -246,17 +234,15 @@ class TestBackendFallback:
 
     def test_simulation_works_without_backend(self):
         """Simulation should work with standard NumPy operations."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(

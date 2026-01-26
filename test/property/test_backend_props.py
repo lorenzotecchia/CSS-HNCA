@@ -82,6 +82,7 @@ class TestBackendRandomProperties:
     def test_random_uniform_bounds(self, low, high, shape, seed):
         """random_uniform values must be within [low, high)."""
         assume(low < high)  # Skip invalid cases
+        assume(high - low > 1e-10)  # Skip degenerate ranges
         backend = NumPyBackend()
         arr = backend.random_uniform(low, high, shape, seed=seed)
         assert np.all(arr >= low)

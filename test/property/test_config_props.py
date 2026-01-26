@@ -52,53 +52,66 @@ def valid_box_size(draw):
 def valid_network_config(draw, n_neurons_strategy=None):
     """Generate a valid NetworkConfig."""
     if n_neurons_strategy is None:
-        n_neurons_strategy = valid_n_neurons
+        n_neurons_strategy = st.integers(min_value=10, max_value=100)
+    
+    n_neurons = draw(n_neurons_strategy)
+    # k_prop must be in [2/n, 1-1/n]
+    k_min = 2 / n_neurons
+    k_max = 1 - 1 / n_neurons
+    k_prop = draw(st.floats(min_value=k_min, max_value=k_max, allow_nan=False))
+    
     weight_min = draw(valid_weight)
     weight_max = draw(st.floats(min_value=weight_min, max_value=1.0, allow_nan=False, allow_infinity=False))
-    initial_weight = draw(st.floats(min_value=weight_min, max_value=weight_max, allow_nan=False, allow_infinity=False))
     excitatory_fraction = draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
     weight_min_inh = draw(st.floats(min_value=-1.0, max_value=0.0, allow_nan=False, allow_infinity=False))
     weight_max_inh = draw(st.floats(min_value=weight_min_inh, max_value=0.0, allow_nan=False, allow_infinity=False))
+    firing_count = draw(st.integers(min_value=1, max_value=max(1, n_neurons // 2)))
 
     return NetworkConfig(
-        n_neurons=draw(n_neurons_strategy),
-        box_size=draw(valid_box_size()),
-        radius=draw(valid_radius),
-        initial_weight=initial_weight,
-        weight_min=weight_min,
-        weight_max=weight_max,
-        initial_firing_fraction=draw(valid_fraction),
+        n_neurons=n_neurons,
+        firing_count=firing_count,
         leak_rate=draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)),
         reset_potential=draw(st.floats(min_value=0.0, max_value=2.0, allow_nan=False, allow_infinity=False)),
         excitatory_fraction=excitatory_fraction,
+        weight_min=weight_min,
+        weight_max=weight_max,
         weight_min_inh=weight_min_inh,
         weight_max_inh=weight_max_inh,
+        k_prop=k_prop,
+        beta_a=draw(st.floats(min_value=0.1, max_value=10.0, allow_nan=False, allow_infinity=False)),
+        beta_b=draw(st.floats(min_value=0.1, max_value=10.0, allow_nan=False, allow_infinity=False)),
     )
 
 
 @st.composite
 def small_network_config(draw):
     """Generate a valid NetworkConfig with small network size (for tests that create networks)."""
+    n_neurons = draw(st.integers(min_value=10, max_value=30))
+    # k_prop must be in [2/n, 1-1/n]
+    k_min = 2 / n_neurons
+    k_max = 1 - 1 / n_neurons
+    k_prop = draw(st.floats(min_value=k_min, max_value=k_max, allow_nan=False))
+    
     weight_min = draw(valid_weight)
     weight_max = draw(st.floats(min_value=weight_min, max_value=1.0, allow_nan=False, allow_infinity=False))
-    initial_weight = draw(st.floats(min_value=weight_min, max_value=weight_max, allow_nan=False, allow_infinity=False))
     excitatory_fraction = draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False))
     weight_min_inh = draw(st.floats(min_value=-1.0, max_value=0.0, allow_nan=False, allow_infinity=False))
     weight_max_inh = draw(st.floats(min_value=weight_min_inh, max_value=0.0, allow_nan=False, allow_infinity=False))
+    firing_count = draw(st.integers(min_value=1, max_value=max(1, n_neurons // 2)))
 
     return NetworkConfig(
-        n_neurons=draw(small_n_neurons),
-        box_size=draw(valid_box_size()),
-        radius=draw(valid_radius),
-        initial_weight=initial_weight,
-        weight_min=weight_min,
-        weight_max=weight_max,
-        initial_firing_fraction=draw(valid_fraction),
+        n_neurons=n_neurons,
+        firing_count=firing_count,
         leak_rate=draw(st.floats(min_value=0.0, max_value=1.0, allow_nan=False, allow_infinity=False)),
         reset_potential=draw(st.floats(min_value=0.0, max_value=2.0, allow_nan=False, allow_infinity=False)),
         excitatory_fraction=excitatory_fraction,
+        weight_min=weight_min,
+        weight_max=weight_max,
         weight_min_inh=weight_min_inh,
         weight_max_inh=weight_max_inh,
+        k_prop=k_prop,
+        beta_a=draw(st.floats(min_value=0.1, max_value=10.0, allow_nan=False, allow_infinity=False)),
+        beta_b=draw(st.floats(min_value=0.1, max_value=10.0, allow_nan=False, allow_infinity=False)),
     )
 
 
@@ -159,15 +172,17 @@ class TestConfigProperties:
 
     @given(config=valid_network_config())
     @settings(max_examples=50)
-    def test_network_config_initial_weight_in_bounds(self, config):
-        """Initial weight should be within [weight_min, weight_max]."""
-        assert config.weight_min <= config.initial_weight <= config.weight_max
+    def test_network_config_k_prop_valid(self, config):
+        """k_prop should be within valid range for n_neurons."""
+        k_min = 2 / config.n_neurons
+        k_max = 1 - 1 / config.n_neurons
+        assert k_min <= config.k_prop <= k_max
 
     @given(config=valid_network_config())
     @settings(max_examples=50)
-    def test_network_config_firing_fraction_valid(self, config):
-        """Initial firing fraction should be in [0, 1]."""
-        assert 0.0 <= config.initial_firing_fraction <= 1.0
+    def test_network_config_firing_count_valid(self, config):
+        """Firing count should be in [0, n_neurons]."""
+        assert 0 <= config.firing_count <= config.n_neurons
 
     @given(config=valid_learning_config())
     @settings(max_examples=50)
@@ -191,11 +206,9 @@ class TestConfigToSimulation:
     @settings(max_examples=20, deadline=None)
     def test_valid_config_produces_valid_network(self, config):
         """Any valid config should produce a valid Network."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=config.network.n_neurons,
-            box_size=config.network.box_size,
-            radius=config.network.radius,
-            initial_weight=config.network.initial_weight,
+            k_prop=config.network.k_prop,
             seed=config.seed,
         )
 
@@ -210,7 +223,7 @@ class TestConfigToSimulation:
         state = NeuronState.create(
             n_neurons=config.network.n_neurons,
             threshold=config.learning.threshold,
-            initial_firing_fraction=config.network.initial_firing_fraction,
+            firing_count=config.network.firing_count,
             seed=config.seed,
         )
 
@@ -221,17 +234,15 @@ class TestConfigToSimulation:
     @settings(max_examples=20, deadline=None)
     def test_valid_config_produces_runnable_simulation(self, config):
         """Any valid config should produce a simulation that can step."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=config.network.n_neurons,
-            box_size=config.network.box_size,
-            radius=config.network.radius,
-            initial_weight=config.network.initial_weight,
+            k_prop=config.network.k_prop,
             seed=config.seed,
         )
         state = NeuronState.create(
             n_neurons=config.network.n_neurons,
             threshold=config.learning.threshold,
-            initial_firing_fraction=config.network.initial_firing_fraction,
+            firing_count=config.network.firing_count,
             seed=config.seed,
         )
         simulation = Simulation(
@@ -254,24 +265,32 @@ class TestConfigRoundTrip:
     @settings(max_examples=20, deadline=None)
     def test_config_toml_roundtrip(self, config):
         """Config should survive TOML round-trip with equivalent values."""
-        # Serialize to TOML
+        # Serialize to TOML with new structure
+        seed_line = f"seed = {config.seed}" if config.seed is not None else ""
+        
         toml_content = f"""
-seed = {config.seed if config.seed is not None else ""}
+{seed_line}
 
 [network]
 n_neurons = {config.network.n_neurons}
-box_size = [{config.network.box_size[0]}, {config.network.box_size[1]}, {config.network.box_size[2]}]
-radius = {config.network.radius}
-initial_weight = {config.network.initial_weight}
+firing_count = {config.network.firing_count}
+leak_rate = {config.network.leak_rate}
+reset_potential = {config.network.reset_potential}
+excitatory_fraction = {config.network.excitatory_fraction}
 weight_min = {config.network.weight_min}
 weight_max = {config.network.weight_max}
-initial_firing_fraction = {config.network.initial_firing_fraction}
+weight_min_inh = {config.network.weight_min_inh}
+weight_max_inh = {config.network.weight_max_inh}
+k_prop = {config.network.k_prop}
+beta_a = {config.network.beta_a}
+beta_b = {config.network.beta_b}
 
 [learning]
 threshold = {config.learning.threshold}
 learning_rate = {config.learning.learning_rate}
 forgetting_rate = {config.learning.forgetting_rate}
 decay_alpha = {config.learning.decay_alpha}
+oja_alpha = {config.learning.oja_alpha}
 
 [visualization]
 pygame_enabled = {str(config.visualization.pygame_enabled).lower()}
@@ -280,9 +299,6 @@ window_width = {config.visualization.window_width}
 window_height = {config.visualization.window_height}
 fps = {config.visualization.fps}
 """
-        # Handle None seed case
-        if config.seed is None:
-            toml_content = toml_content.replace("seed = \n", "")
 
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".toml", delete=False

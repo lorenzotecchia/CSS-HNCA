@@ -74,7 +74,7 @@ class TestAvalancheDetection:
 
     def test_detects_simple_avalanche(self):
         """Detect an avalanche that rises above and returns below threshold."""
-        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1)
+        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1, burn_in=0)
         
         # Quiet -> active -> quiet
         detector.record_step(time_step=0, firing_count=5)   # quiet
@@ -92,7 +92,7 @@ class TestAvalancheDetection:
 
     def test_detects_multiple_avalanches(self):
         """Detect multiple separate avalanches."""
-        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1)
+        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1, burn_in=0)
         
         # First avalanche
         detector.record_step(time_step=0, firing_count=5)
@@ -113,7 +113,7 @@ class TestAvalancheDetection:
 
     def test_avalanche_at_exact_threshold(self):
         """Activity exactly at threshold should be considered active."""
-        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1)
+        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1, burn_in=0)
         
         detector.record_step(time_step=0, firing_count=5)
         detector.record_step(time_step=1, firing_count=10)  # exactly at 10%
@@ -127,7 +127,7 @@ class TestAvalancheMetrics:
 
     def test_branching_ratio_single_step(self):
         """Branching ratio = avg(firing_t+1 / firing_t)."""
-        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1)
+        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1, burn_in=0)
         
         # During avalanche: 10 -> 20 (ratio 2.0) -> 10 (ratio 0.5)
         detector.record_step(time_step=0, firing_count=5)
@@ -142,7 +142,7 @@ class TestAvalancheMetrics:
 
     def test_branching_ratio_critical(self):
         """Branching ratio ≈ 1.0 indicates critical dynamics."""
-        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1)
+        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1, burn_in=0)
         
         # Constant activity during avalanche
         detector.record_step(time_step=0, firing_count=5)
@@ -156,7 +156,7 @@ class TestAvalancheMetrics:
 
     def test_size_distribution(self):
         """Get distribution of avalanche sizes."""
-        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1)
+        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1, burn_in=0)
         
         # Create several avalanches of different sizes
         for i in range(3):
@@ -174,7 +174,7 @@ class TestOngoingAvalanche:
 
     def test_ongoing_avalanche_not_counted(self):
         """Avalanche still in progress should not be in completed list."""
-        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1)
+        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1, burn_in=0)
         
         detector.record_step(time_step=0, firing_count=5)
         detector.record_step(time_step=1, firing_count=15)  # starts
@@ -186,7 +186,7 @@ class TestOngoingAvalanche:
 
     def test_finalize_closes_ongoing_avalanche(self):
         """Finalize should close any ongoing avalanche."""
-        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1)
+        detector = AvalancheDetector(n_neurons=100, quiet_threshold=0.1, burn_in=0)
         
         detector.record_step(time_step=0, firing_count=5)
         detector.record_step(time_step=1, firing_count=15)

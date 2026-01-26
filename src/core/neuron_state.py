@@ -38,35 +38,35 @@ class NeuronState:
         cls,
         n_neurons: int,
         threshold: float,
-        initial_firing_fraction: float,
+        firing_count: int = 1,
         seed: int | None = None,
         leak_rate: float = 0.0,
         reset_potential: float = 0.0,
         backend: ArrayBackend | None = None,
     ) -> "NeuronState":
-        """Create initial neuron state with random firing pattern.
+        """Create initial neuron state with specified number of firing neurons.
 
         Args:
             n_neurons: Number of neurons
             threshold: Firing threshold γ (must be >= 0)
-            initial_firing_fraction: Fraction of neurons firing at t=0 (0 to 1)
+            firing_count: Number of neurons firing at t=0 (0 to n_neurons)
             seed: Random seed for reproducibility
             leak_rate: LIF leak rate λ in [0, 1] (potential decay fraction)
             reset_potential: Amount subtracted from potential after firing (>= 0)
             backend: Array backend for computation (default: NumPy)
 
         Returns:
-            NeuronState with random initial firing based on fraction
+            NeuronState with specified number of randomly firing neurons
 
         Raises:
-            ValueError: If threshold < 0 or initial_firing_fraction not in [0, 1]
+            ValueError: If threshold < 0 or firing_count not in [0, n_neurons]
                        or leak_rate not in [0, 1] or reset_potential < 0
         """
         if threshold < 0:
             raise ValueError(f"Threshold must be >= 0, got {threshold}")
-        if not 0 <= initial_firing_fraction <= 1:
+        if not 0 <= firing_count <= n_neurons:
             raise ValueError(
-                f"initial_firing_fraction must be in [0, 1], got {initial_firing_fraction}"
+                f"firing_count must be in [0, {n_neurons}], got {firing_count}"
             )
         if not 0 <= leak_rate <= 1:
             raise ValueError(f"leak_rate must be in [0, 1], got {leak_rate}")
@@ -76,8 +76,12 @@ class NeuronState:
         if backend is None:
             backend = get_backend()
 
-        # Create initial firing state based on fraction
-        firing = backend.random_bool(initial_firing_fraction, (n_neurons,), seed)
+        # Create initial firing state with exactly firing_count neurons firing
+        rng = np.random.default_rng(seed)
+        firing = np.zeros(n_neurons, dtype=np.bool_)
+        if firing_count > 0:
+            firing_indices = rng.choice(n_neurons, size=firing_count, replace=False)
+            firing[firing_indices] = True
 
         # Previous state starts all False
         firing_prev = backend.zeros((n_neurons,), dtype=np.bool_)

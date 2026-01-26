@@ -17,11 +17,9 @@ class TestBackendIntegration:
         """Verify all components use the same backend."""
         backend = NumPyBackend()
 
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(5.0, 5.0, 5.0),
-            radius=2.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
             backend=backend,
         )
@@ -29,7 +27,7 @@ class TestBackendIntegration:
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
             backend=backend,
         )
@@ -60,18 +58,16 @@ class TestBackendIntegration:
 
     def test_backward_compatibility_no_backend(self):
         """Verify components work without explicit backend."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(5.0, 5.0, 5.0),
-            radius=2.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
 
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
 

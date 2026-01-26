@@ -22,7 +22,7 @@ src/
 ├── events/                  # Event system
 │   └── bus.py               # EventBus: typed events, subscribe/emit
 ├── visualization/           # Decoupled from core
-│   ├── pygame_view.py       # 3D network rendering + connection lines
+│   ├── visualization.py     # 3D network rendering + connection lines
 │   ├── matplotlib_view.py   # Real-time plots (firing, weights, histogram)
 │   └── tui_logger.py        # Terminal output for headless HPC runs
 ├── output/                  # Data persistence
@@ -190,10 +190,10 @@ fps = 30
 ## Visualization
 
 ### PygameNetworkView
-- 3D→2D projection with rotation controls
-- Neurons as circles (red=firing, blue=not firing)
+- 3D→2D projection with mouse-drag orbiting (orthographic)
+- Neurons as circles (red=firing, black=not firing) with uniform size
 - **Connection lines**: thickness/opacity proportional to weight strength
-- Keyboard controls: SPACE=step, R=reset, P=pause, ESC=quit
+- Controls: SPACE=step, ENTER=run/stop, R=reset, ESC=quit, mouse drag=orbit, mouse wheel=zoom
 
 ### MatplotlibAnalyticsView
 - Firing count over time (line plot)
@@ -308,7 +308,7 @@ test/
 ---
 
 ### Phase 4: Pygame Visualization
-**Modules**: `visualization/pygame_view.py`
+**Modules**: `visualization/visualization.py`
 
 > **Note**: Visualization tests skipped (tested by running)
 

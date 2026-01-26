@@ -17,17 +17,15 @@ class TestSimulationLearningIntegration:
 
     def test_simulation_accepts_learner(self):
         """Simulation should accept an optional HebbianLearner."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(10.0, 10.0, 10.0),
-            radius=5.0,
-            initial_weight=0.1,
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.2,
+            firing_count=1,
             seed=42,
         )
         learner = HebbianLearner(
@@ -48,17 +46,15 @@ class TestSimulationLearningIntegration:
     def test_weights_change_after_step_with_learner(self):
         """Weights should change after step when learner is provided."""
         # Create network with known structure
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=5,
-            box_size=(5.0, 5.0, 5.0),
-            radius=10.0,  # All neurons connected
-            initial_weight=0.5,
+            k_prop=0.6,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=5,
             threshold=0.3,
-            initial_firing_fraction=0.4,
+            firing_count=1,
             seed=42,
         )
         learner = HebbianLearner(
@@ -86,17 +82,15 @@ class TestSimulationLearningIntegration:
 
     def test_weights_stay_same_without_learner(self):
         """Weights should not change if no learner is provided."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=5,
-            box_size=(5.0, 5.0, 5.0),
-            radius=10.0,
-            initial_weight=0.5,
+            k_prop=0.6,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=5,
             threshold=0.3,
-            initial_firing_fraction=0.4,
+            firing_count=1,
             seed=42,
         )
         sim = Simulation(
@@ -122,11 +116,10 @@ class TestLTPInSimulation:
     def test_causal_firing_increases_weight(self):
         """When A fires then B fires, A->B weight should increase."""
         # Create minimal network with controlled connections
-        network = Network.create_random(
+        # For n=3, k_prop must be exactly 2/3
+        network = Network.create_beta_weighted_directed(
             n_neurons=3,
-            box_size=(10.0, 10.0, 10.0),
-            radius=15.0,  # All connected
-            initial_weight=0.5,
+            k_prop=2/3,
             seed=42,
         )
         # Ensure we have a link from 0 to 1
@@ -136,7 +129,7 @@ class TestLTPInSimulation:
         state = NeuronState.create(
             n_neurons=3,
             threshold=0.3,
-            initial_firing_fraction=0.0,
+            firing_count=1,
             seed=42,
         )
         # Neuron 0 fires at t=0
@@ -176,17 +169,16 @@ class TestLTDInSimulation:
 
     def test_anti_causal_firing_decreases_weight(self):
         """When B fires then A fires, A->B weight should decrease."""
-        network = Network.create_random(
+        # For n=3, k_prop must be exactly 2/3
+        network = Network.create_beta_weighted_directed(
             n_neurons=3,
-            box_size=(10.0, 10.0, 10.0),
-            radius=15.0,
-            initial_weight=0.5,
+            k_prop=2/3,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=3,
             threshold=0.8,  # High threshold so firing is controlled
-            initial_firing_fraction=0.0,
+            firing_count=1,
             seed=42,
         )
         # Set up anti-causal: B(1) fires first
@@ -223,17 +215,15 @@ class TestWeightBoundsInSimulation:
 
     def test_weights_never_exceed_max(self):
         """Weights should never exceed weight_max during simulation."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(5.0, 5.0, 5.0),
-            radius=10.0,
-            initial_weight=0.9,  # Start high
+            k_prop=0.2,
             seed=42,
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.3,
-            initial_firing_fraction=0.5,
+            firing_count=1,
             seed=42,
         )
         learner = HebbianLearner(
@@ -256,18 +246,15 @@ class TestWeightBoundsInSimulation:
 
     def test_weights_never_below_min(self):
         """Weights should never go below weight_min during simulation."""
-        network = Network.create_random(
+        network = Network.create_beta_weighted_directed(
             n_neurons=10,
-            box_size=(5.0, 5.0, 5.0),
-            radius=10.0,
-            initial_weight=0.1,  # Start low
+            k_prop=0.2,
             seed=42,
-            excitatory_fraction=1.0,  # All excitatory neurons (weights >= 0)
         )
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.3,
-            initial_firing_fraction=0.5,
+            firing_count=1,
             seed=42,
         )
         learner = HebbianLearner(
@@ -295,17 +282,15 @@ class TestLearningDeterminism:
     def test_same_seed_same_learning(self):
         """Same seed should produce same learning evolution."""
         def create_sim(seed):
-            network = Network.create_random(
+            network = Network.create_beta_weighted_directed(
                 n_neurons=10,
-                box_size=(10.0, 10.0, 10.0),
-                radius=5.0,
-                initial_weight=0.2,
+                k_prop=0.2,
                 seed=seed,
             )
             state = NeuronState.create(
                 n_neurons=10,
                 threshold=0.3,
-                initial_firing_fraction=0.3,
+                firing_count=1,
                 seed=seed,
             )
             learner = HebbianLearner(

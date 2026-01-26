@@ -17,7 +17,7 @@ class TestNeuronStateCreation:
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.1,
+            firing_count=1,
             seed=42,
         )
         assert isinstance(state, NeuronState)
@@ -27,7 +27,7 @@ class TestNeuronStateCreation:
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.75,
-            initial_firing_fraction=0.1,
+            firing_count=1,
             seed=42,
         )
         assert state.threshold == 0.75
@@ -41,7 +41,7 @@ class TestNeuronStateFiringArrays:
         state = NeuronState.create(
             n_neurons=25,
             threshold=0.5,
-            initial_firing_fraction=0.1,
+            firing_count=3,
             seed=42,
         )
         assert state.firing.shape == (25,)
@@ -51,7 +51,7 @@ class TestNeuronStateFiringArrays:
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.1,
+            firing_count=1,
             seed=42,
         )
         assert state.firing.dtype == np.bool_
@@ -61,7 +61,7 @@ class TestNeuronStateFiringArrays:
         state = NeuronState.create(
             n_neurons=25,
             threshold=0.5,
-            initial_firing_fraction=0.1,
+            firing_count=3,
             seed=42,
         )
         assert state.firing_prev.shape == (25,)
@@ -71,53 +71,51 @@ class TestNeuronStateFiringArrays:
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.5,
-            initial_firing_fraction=0.1,
+            firing_count=1,
             seed=42,
         )
         assert state.firing_prev.dtype == np.bool_
 
 
 class TestNeuronStateInitialFiring:
-    """Tests for initial firing state with random fraction."""
+    """Tests for initial firing state with specified count."""
 
-    def test_initial_firing_fraction_zero(self):
-        """With fraction=0, no neurons should fire initially."""
+    def test_firing_count_zero(self):
+        """With count=0, no neurons should fire initially."""
         state = NeuronState.create(
             n_neurons=100,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
         )
         assert not np.any(state.firing)
 
-    def test_initial_firing_fraction_one(self):
-        """With fraction=1, all neurons should fire initially."""
+    def test_firing_count_all(self):
+        """With count=n_neurons, all neurons should fire initially."""
         state = NeuronState.create(
             n_neurons=100,
             threshold=0.5,
-            initial_firing_fraction=1.0,
+            firing_count=100,
             seed=42,
         )
         assert np.all(state.firing)
 
-    def test_initial_firing_fraction_approximate(self):
-        """With fraction=0.3, approximately 30% should fire (within tolerance)."""
+    def test_firing_count_exact(self):
+        """With count=30, exactly 30 neurons should fire."""
         state = NeuronState.create(
-            n_neurons=1000,
+            n_neurons=100,
             threshold=0.5,
-            initial_firing_fraction=0.3,
+            firing_count=30,
             seed=42,
         )
-        actual_fraction = np.sum(state.firing) / 1000
-        # Allow 5% tolerance for random variation
-        assert 0.25 <= actual_fraction <= 0.35
+        assert np.sum(state.firing) == 30
 
     def test_firing_prev_initially_false(self):
         """Previous firing state should start all False."""
         state = NeuronState.create(
             n_neurons=50,
             threshold=0.5,
-            initial_firing_fraction=0.5,
+            firing_count=25,
             seed=42,
         )
         assert not np.any(state.firing_prev)
@@ -132,7 +130,7 @@ class TestNeuronStateThresholdValidation:
             NeuronState.create(
                 n_neurons=10,
                 threshold=-0.1,
-                initial_firing_fraction=0.1,
+                firing_count=1,
                 seed=42,
             )
 
@@ -141,32 +139,32 @@ class TestNeuronStateThresholdValidation:
         state = NeuronState.create(
             n_neurons=10,
             threshold=0.0,
-            initial_firing_fraction=0.1,
+            firing_count=1,
             seed=42,
         )
         assert state.threshold == 0.0
 
 
-class TestNeuronStateFiringFractionValidation:
-    """Tests for initial_firing_fraction validation."""
+class TestNeuronStateFiringCountValidation:
+    """Tests for firing_count validation."""
 
-    def test_firing_fraction_negative_invalid(self):
-        """Firing fraction must be >= 0."""
+    def test_firing_count_negative_invalid(self):
+        """Firing count must be >= 0."""
         with pytest.raises(ValueError):
             NeuronState.create(
                 n_neurons=10,
                 threshold=0.5,
-                initial_firing_fraction=-0.1,
+                firing_count=-1,
                 seed=42,
             )
 
-    def test_firing_fraction_above_one_invalid(self):
-        """Firing fraction must be <= 1."""
+    def test_firing_count_above_n_neurons_invalid(self):
+        """Firing count must be <= n_neurons."""
         with pytest.raises(ValueError):
             NeuronState.create(
                 n_neurons=10,
                 threshold=0.5,
-                initial_firing_fraction=1.5,
+                firing_count=15,
                 seed=42,
             )
 
@@ -179,13 +177,13 @@ class TestNeuronStateReproducibility:
         state1 = NeuronState.create(
             n_neurons=100,
             threshold=0.5,
-            initial_firing_fraction=0.3,
+            firing_count=30,
             seed=12345,
         )
         state2 = NeuronState.create(
             n_neurons=100,
             threshold=0.5,
-            initial_firing_fraction=0.3,
+            firing_count=30,
             seed=12345,
         )
         assert np.array_equal(state1.firing, state2.firing)
@@ -195,16 +193,16 @@ class TestNeuronStateReproducibility:
         state1 = NeuronState.create(
             n_neurons=100,
             threshold=0.5,
-            initial_firing_fraction=0.5,
+            firing_count=50,
             seed=111,
         )
         state2 = NeuronState.create(
             n_neurons=100,
             threshold=0.5,
-            initial_firing_fraction=0.5,
+            firing_count=50,
             seed=222,
         )
-        # With 50% firing, it's extremely unlikely to be identical
+        # With 50 firing, it's extremely unlikely to be identical
         assert not np.array_equal(state1.firing, state2.firing)
 
 
@@ -216,7 +214,7 @@ class TestNeuronStateUpdate:
         state = NeuronState.create(
             n_neurons=5,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
         )
         # Input signal exceeds threshold for neurons 0 and 2
@@ -230,7 +228,7 @@ class TestNeuronStateUpdate:
         state = NeuronState.create(
             n_neurons=3,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
         )
         # First update
@@ -248,7 +246,7 @@ class TestNeuronStateUpdate:
         state = NeuronState.create(
             n_neurons=3,
             threshold=0.5,
-            initial_firing_fraction=0.0,
+            firing_count=0,
             seed=42,
         )
         input_signal = np.array([0.5, 0.499999, 0.500001])
