@@ -88,18 +88,19 @@ def create_simulation_from_config(config_path: Path) -> Simulation:
     """
     config = load_config(config_path)
 
-    network = Network.create_random(
+    network = Network.create_beta_weighted_directed(
         n_neurons=config.network.n_neurons,
-        box_size=config.network.box_size,
-        radius=config.network.radius,
-        initial_weight=config.network.initial_weight,
+        k_prop=0.05,
+        a=2.0,
+        b=6.0,
+        inhibitory_proportion=0.0,
         seed=config.seed,
     )
 
     state = NeuronState.create(
         n_neurons=config.network.n_neurons,
         threshold=config.learning.threshold,
-        initial_firing_fraction=config.network.initial_firing_fraction,
+        firing_count=config.network.firing_count,
         seed=config.seed,
         leak_rate=config.network.leak_rate,
         reset_potential=config.network.reset_potential,

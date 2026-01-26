@@ -21,23 +21,13 @@ class NetworkConfig:
 
     Attributes:
         n_neurons: Number of neurons in the network
-        box_size: (x, y, z) dimensions of the 3D volume
-        radius: Maximum distance for structural connectivity
-        initial_weight: Initial synaptic weight for connected neurons
-        weight_min: Minimum allowed weight value
-        weight_max: Maximum allowed weight value
-        initial_firing_fraction: Fraction of neurons firing at t=0
+        firing_count: Number of neurons firing at t=0
         leak_rate: LIF leak rate λ (potential decay fraction per step)
         reset_potential: Amount subtracted from potential after firing
     """
 
     n_neurons: int
-    box_size: tuple[float, float, float]
-    radius: float
-    initial_weight: float
-    weight_min: float
-    weight_max: float
-    initial_firing_fraction: float
+    firing_count: int
     leak_rate: float
     reset_potential: float
 
@@ -102,21 +92,9 @@ def _validate_network_config(data: dict[str, Any]) -> None:
     if data.get("n_neurons", 0) <= 0:
         raise ConfigValidationError("n_neurons must be positive")
 
-    if data.get("radius", 0) <= 0:
-        raise ConfigValidationError("radius must be positive")
-
-    firing_fraction = data.get("initial_firing_fraction", -1)
-    if not 0 <= firing_fraction <= 1:
-        raise ConfigValidationError("initial_firing_fraction must be in [0, 1]")
-
-    weight_min = data.get("weight_min", 0)
-    weight_max = data.get("weight_max", 0)
-    if weight_min > weight_max:
-        raise ConfigValidationError("weight_min must be <= weight_max")
-
-    box_size = data.get("box_size", [])
-    if len(box_size) != 3 or any(d <= 0 for d in box_size):
-        raise ConfigValidationError("box_size must be 3 positive values")
+    firing_count = data.get("firing_count", -1)
+    if not isinstance(firing_count, int) or firing_count < 0:
+        raise ConfigValidationError("firing_count must be a non-negative integer")
 
     leak_rate = data.get("leak_rate", 0.0)
     if not 0 <= leak_rate <= 1:
@@ -137,12 +115,7 @@ def _parse_network_config(data: dict[str, Any]) -> NetworkConfig:
     """Parse and validate network configuration section."""
     required_fields = [
         "n_neurons",
-        "box_size",
-        "radius",
-        "initial_weight",
-        "weight_min",
-        "weight_max",
-        "initial_firing_fraction",
+        "firing_count",
     ]
 
     for field in required_fields:
@@ -153,12 +126,7 @@ def _parse_network_config(data: dict[str, Any]) -> NetworkConfig:
 
     return NetworkConfig(
         n_neurons=int(data["n_neurons"]),
-        box_size=tuple(float(x) for x in data["box_size"]),  # type: ignore
-        radius=float(data["radius"]),
-        initial_weight=float(data["initial_weight"]),
-        weight_min=float(data["weight_min"]),
-        weight_max=float(data["weight_max"]),
-        initial_firing_fraction=float(data["initial_firing_fraction"]),
+        firing_count=int(data["firing_count"]),
         leak_rate=float(data.get("leak_rate", 0.0)),
         reset_potential=float(data.get("reset_potential", 0.0)),
     )

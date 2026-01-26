@@ -14,11 +14,12 @@ from src.core.neuron_state import NeuronState
 @pytest.fixture
 def small_network():
     """Create a small network for testing."""
-    return Network.create_random(
+    return Network.create_beta_weighted_directed(
         n_neurons=10,
-        box_size=(10.0, 10.0, 10.0),
-        radius=5.0,
-        initial_weight=0.1,
+        k_prop=0.05,
+        a=2.0,
+        b=6.0,
+        inhibitory_proportion=0.0,
         seed=42,
     )
 
@@ -29,7 +30,7 @@ def neuron_state():
     return NeuronState.create(
         n_neurons=10,
         threshold=0.5,
-        initial_firing_fraction=0.2,
+        firing_count=2,
         seed=42,
     )
 

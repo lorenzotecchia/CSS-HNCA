@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import math
 import time
+import argparse
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
@@ -239,6 +240,7 @@ def create_simulation(
     a: float,
     b: float,
     inhibitory_proportion: float,
+    firing_count: int,
 ) -> Simulation:
     network = Network.create_beta_weighted_directed(
         n_neurons=n_neurons,
@@ -252,7 +254,7 @@ def create_simulation(
     state = NeuronState.create(
         n_neurons=n_neurons,
         threshold=config.learning.threshold,
-        initial_firing_fraction=config.network.initial_firing_fraction,
+        firing_count=firing_count,
         seed=seed,
         leak_rate=config.network.leak_rate,
         reset_potential=config.network.reset_potential,
@@ -280,7 +282,7 @@ def create_simulation(
     )
 
 
-def main() -> None:
+def main(firing_count: int | None = None) -> None:
     config = load_config(DEFAULT_CONFIG_PATH)
     base_seed = config.seed if config.seed is not None else int(time.time())
     reset_index = 0
@@ -293,7 +295,9 @@ def main() -> None:
     inhibitory_proportion = 0.0
     stimulus_count = 1
 
-    simulation = create_simulation(config, current_seed, n_neurons, k_prop, beta_a, beta_b, inhibitory_proportion)
+    firing_count = firing_count if firing_count is not None else config.network.firing_count
+
+    simulation = create_simulation(config, current_seed, n_neurons, k_prop, beta_a, beta_b, inhibitory_proportion, firing_count)
     avalanche_controller = AvalancheController(simulation, n_neurons=n_neurons, stimulus_count=stimulus_count)
 
     pygame.init()
@@ -387,7 +391,7 @@ def main() -> None:
         nonlocal simulation, projected_nodes, edge_indices, running_sim, accumulator, current_seed
         if new_seed is not None:
             current_seed = new_seed
-        simulation = create_simulation(config, current_seed, n_neurons, k_prop, beta_a, beta_b, inhibitory_proportion)
+        simulation = create_simulation(config, current_seed, n_neurons, k_prop, beta_a, beta_b, inhibitory_proportion, firing_count)
         projected_nodes = project_positions(
             simulation.network.positions, simulation.network.box_size, viewport, yaw, pitch, zoom
         )
@@ -669,4 +673,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Pygame visualization for neural cellular automata")
+    parser.add_argument("--firing-count", type=int, help="Number of neurons initially firing")
+    args = parser.parse_args()
+    main(firing_count=args.firing_count)

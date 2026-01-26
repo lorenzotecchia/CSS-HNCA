@@ -16,7 +16,7 @@ n_neurons_strategy = st.integers(min_value=5, max_value=50)
 steps_strategy = st.integers(min_value=1, max_value=100)
 threshold_strategy = st.floats(min_value=0.1, max_value=1.0, allow_nan=False)
 rate_strategy = st.floats(min_value=0.001, max_value=0.1, allow_nan=False)
-fraction_strategy = st.floats(min_value=0.0, max_value=1.0, allow_nan=False)
+firing_count_strategy = st.integers(min_value=1, max_value=50)
 seed_strategy = st.integers(min_value=0, max_value=2**31 - 1)
 
 
@@ -25,21 +25,22 @@ def create_simulation(
     threshold: float,
     learning_rate: float,
     forgetting_rate: float,
-    initial_firing_fraction: float,
+    firing_count: int,
     seed: int,
 ) -> Simulation:
     """Helper to create a simulation with given parameters."""
-    network = Network.create_random(
+    network = Network.create_beta_weighted_directed(
         n_neurons=n_neurons,
-        box_size=(10.0, 10.0, 10.0),
-        radius=5.0,
-        initial_weight=0.1,
+        k_prop=0.05,
+        a=2.0,
+        b=6.0,
+        inhibitory_proportion=0.0,
         seed=seed,
     )
     state = NeuronState.create(
         n_neurons=n_neurons,
         threshold=threshold,
-        initial_firing_fraction=initial_firing_fraction,
+        firing_count=firing_count,
         seed=seed,
     )
     return Simulation(
@@ -59,7 +60,7 @@ class TestSimulationStepProperties:
         threshold=threshold_strategy,
         learning_rate=rate_strategy,
         forgetting_rate=rate_strategy,
-        initial_firing_fraction=fraction_strategy,
+        firing_count=firing_count_strategy,
         seed=seed_strategy,
     )
     @settings(max_examples=30)
@@ -70,13 +71,13 @@ class TestSimulationStepProperties:
         threshold,
         learning_rate,
         forgetting_rate,
-        initial_firing_fraction,
+        firing_count,
         seed,
     ):
         """Time step must monotonically increase with each step()."""
         sim = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
 
         for expected_step in range(1, n_steps + 1):
@@ -89,7 +90,7 @@ class TestSimulationStepProperties:
         threshold=threshold_strategy,
         learning_rate=rate_strategy,
         forgetting_rate=rate_strategy,
-        initial_firing_fraction=fraction_strategy,
+        firing_count=firing_count_strategy,
         seed=seed_strategy,
     )
     @settings(max_examples=30)
@@ -100,13 +101,13 @@ class TestSimulationStepProperties:
         threshold,
         learning_rate,
         forgetting_rate,
-        initial_firing_fraction,
+        firing_count,
         seed,
     ):
         """Firing state shape must remain (n_neurons,) after any steps."""
         sim = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
 
         for _ in range(n_steps):
@@ -121,7 +122,7 @@ class TestSimulationStepProperties:
         threshold=threshold_strategy,
         learning_rate=rate_strategy,
         forgetting_rate=rate_strategy,
-        initial_firing_fraction=fraction_strategy,
+        firing_count=firing_count_strategy,
         seed=seed_strategy,
     )
     @settings(max_examples=30)
@@ -132,13 +133,13 @@ class TestSimulationStepProperties:
         threshold,
         learning_rate,
         forgetting_rate,
-        initial_firing_fraction,
+        firing_count,
         seed,
     ):
         """Weight matrix shape must remain (n_neurons, n_neurons) after steps."""
         sim = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
 
         for _ in range(n_steps):
@@ -156,7 +157,7 @@ class TestSimulationResetProperties:
         threshold=threshold_strategy,
         learning_rate=rate_strategy,
         forgetting_rate=rate_strategy,
-        initial_firing_fraction=fraction_strategy,
+        firing_count=firing_count_strategy,
         seed=seed_strategy,
     )
     @settings(max_examples=30)
@@ -167,13 +168,13 @@ class TestSimulationResetProperties:
         threshold,
         learning_rate,
         forgetting_rate,
-        initial_firing_fraction,
+        firing_count,
         seed,
     ):
         """Reset must always set time_step to 0."""
         sim = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
 
         for _ in range(n_steps):
@@ -188,7 +189,7 @@ class TestSimulationResetProperties:
         threshold=threshold_strategy,
         learning_rate=rate_strategy,
         forgetting_rate=rate_strategy,
-        initial_firing_fraction=fraction_strategy,
+        firing_count=firing_count_strategy,
         seed=seed_strategy,
     )
     @settings(max_examples=30)
@@ -199,13 +200,13 @@ class TestSimulationResetProperties:
         threshold,
         learning_rate,
         forgetting_rate,
-        initial_firing_fraction,
+        firing_count,
         seed,
     ):
         """Reset must always set state to STOPPED."""
         sim = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
 
         sim.start()
@@ -224,7 +225,7 @@ class TestSimulationStateTransitionProperties:
         threshold=threshold_strategy,
         learning_rate=rate_strategy,
         forgetting_rate=rate_strategy,
-        initial_firing_fraction=fraction_strategy,
+        firing_count=firing_count_strategy,
         seed=seed_strategy,
     )
     @settings(max_examples=30)
@@ -234,13 +235,13 @@ class TestSimulationStateTransitionProperties:
         threshold,
         learning_rate,
         forgetting_rate,
-        initial_firing_fraction,
+        firing_count,
         seed,
     ):
         """start() must always result in RUNNING state."""
         sim = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
 
         sim.start()
@@ -251,7 +252,7 @@ class TestSimulationStateTransitionProperties:
         threshold=threshold_strategy,
         learning_rate=rate_strategy,
         forgetting_rate=rate_strategy,
-        initial_firing_fraction=fraction_strategy,
+        firing_count=firing_count_strategy,
         seed=seed_strategy,
     )
     @settings(max_examples=30)
@@ -261,13 +262,13 @@ class TestSimulationStateTransitionProperties:
         threshold,
         learning_rate,
         forgetting_rate,
-        initial_firing_fraction,
+        firing_count,
         seed,
     ):
         """pause() from RUNNING must result in PAUSED state."""
         sim = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
 
         sim.start()
@@ -284,7 +285,7 @@ class TestSimulationDeterminismProperties:
         threshold=threshold_strategy,
         learning_rate=rate_strategy,
         forgetting_rate=rate_strategy,
-        initial_firing_fraction=fraction_strategy,
+        firing_count=firing_count_strategy,
         seed=seed_strategy,
     )
     @settings(max_examples=20)
@@ -295,17 +296,17 @@ class TestSimulationDeterminismProperties:
         threshold,
         learning_rate,
         forgetting_rate,
-        initial_firing_fraction,
+        firing_count,
         seed,
     ):
         """Same seed must produce identical simulation evolution."""
         sim1 = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
         sim2 = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
 
         for _ in range(n_steps):
@@ -328,7 +329,7 @@ class TestSimulationMetricProperties:
         threshold=threshold_strategy,
         learning_rate=rate_strategy,
         forgetting_rate=rate_strategy,
-        initial_firing_fraction=fraction_strategy,
+        firing_count=firing_count_strategy,
         seed=seed_strategy,
     )
     @settings(max_examples=30)
@@ -339,13 +340,13 @@ class TestSimulationMetricProperties:
         threshold,
         learning_rate,
         forgetting_rate,
-        initial_firing_fraction,
+        firing_count,
         seed,
     ):
         """Firing count must always be between 0 and n_neurons."""
         sim = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
 
         for _ in range(n_steps):
@@ -358,7 +359,7 @@ class TestSimulationMetricProperties:
         threshold=threshold_strategy,
         learning_rate=rate_strategy,
         forgetting_rate=rate_strategy,
-        initial_firing_fraction=fraction_strategy,
+        firing_count=firing_count_strategy,
         seed=seed_strategy,
     )
     @settings(max_examples=30)
@@ -369,13 +370,13 @@ class TestSimulationMetricProperties:
         threshold,
         learning_rate,
         forgetting_rate,
-        initial_firing_fraction,
+        firing_count,
         seed,
     ):
         """Average weight must always be non-negative."""
         sim = create_simulation(
             n_neurons, threshold, learning_rate, forgetting_rate,
-            initial_firing_fraction, seed
+            firing_count, seed
         )
 
         for _ in range(n_steps):
