@@ -15,22 +15,17 @@ DOCS_DIR := docs
 # =============================================================================
 # Execution Configuration
 # =============================================================================
-# Number of parallel processes (auto-detect or override: make run-parallel NCPUS=8)
+# Number of parallel processes (auto-detect or override: make test-fast NCPUS=8)
 NCPUS ?= $(shell $(PYTHON) -c "import os; print(os.cpu_count() or 1)")
 
 # Main entry point
 MAIN := main.py
 
-# Config file for simulation (override: make run CONFIG=config/sweep1.yaml)
+# Config file for simulation (override: make run CONFIG=config/sweep1.toml)
 CONFIG ?= $(CONFIG_DIR)/default.toml
 
-# =============================================================================
-# Parameter Sweep Configuration
-# =============================================================================
-# Sweep parameters (override on command line: make sweep PARAM=density VALUES="0.1 0.2 0.3")
-PARAM ?= 
-VALUES ?= 
-SWEEP_OUTPUT_DIR ?= $(OUTPUT_DIR)/sweeps
+# Number of simulation steps for headless mode (override: make run-headless STEPS=5000)
+STEPS ?= 1000
 
 # =============================================================================
 # HPC/Cluster Configuration
@@ -56,10 +51,9 @@ help:  ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Variables:"
-	@echo "  NCPUS=$(NCPUS)              Number of CPU cores for parallel execution"
+	@echo "  NCPUS=$(NCPUS)              Number of CPU cores for parallel testing"
 	@echo "  CONFIG=$(CONFIG)   Configuration file path"
-	@echo "  PARAM=<name>               Parameter name for sweep"
-	@echo "  VALUES=<list>              Space-separated values for sweep"
+	@echo "  STEPS=$(STEPS)              Simulation steps for headless mode"
 
 .DEFAULT_GOAL := help
 
@@ -77,7 +71,7 @@ install:  ## Install project dependencies
 
 .PHONY: install-dev
 install-dev: install  ## Install dev dependencies (testing, linting, parallel)
-	uv pip install pytest pytest-xdist pytest-cov pytest-timeout hypothesis
+	uv pip install pytest pytest-xdist pytest-cov pytest-timeout pytest-watch hypothesis
 	uv pip install black isort flake8 mypy
 	uv pip install joblib multiprocess
 
@@ -158,12 +152,12 @@ test-all:  ## Run all tests including slow ones
 # Simulation Execution
 # =============================================================================
 .PHONY: run
-run:  ## Run simulation with default/specified config
+run:  ## Run simulation with pygame visualization
 	$(PYTHON) $(MAIN) --config $(CONFIG)
 
-.PHONY: run-parallel
-run-parallel:  ## Run simulation with multiple processes
-	$(PYTHON) $(MAIN) --config $(CONFIG) --ncpus $(NCPUS)
+.PHONY: run-headless
+run-headless:  ## Run simulation headless (STEPS=N to set steps)
+	$(PYTHON) $(MAIN) --config $(CONFIG) --headless --steps $(STEPS) --verbose
 
 .PHONY: run-debug
 run-debug:  ## Run simulation in debug mode
@@ -171,47 +165,30 @@ run-debug:  ## Run simulation in debug mode
 
 .PHONY: run-profile
 run-profile:  ## Run simulation with profiling
-	$(PYTHON) -m cProfile -o $(OUTPUT_DIR)/profile.stats $(MAIN) --config $(CONFIG)
+	$(PYTHON) -m cProfile -o $(OUTPUT_DIR)/profile.stats $(MAIN) --config $(CONFIG) --headless --steps $(STEPS)
 	@echo "Profile saved to $(OUTPUT_DIR)/profile.stats"
 	@echo "View with: python -m pstats $(OUTPUT_DIR)/profile.stats"
 
 # =============================================================================
-# Parameter Sweeps
+# Demo Scripts
 # =============================================================================
-.PHONY: sweep
-sweep:  ## Run parameter sweep (PARAM=name VALUES="v1 v2 v3")
-ifndef PARAM
-	$(error PARAM is required. Usage: make sweep PARAM=density VALUES="0.1 0.2 0.3")
-endif
-ifndef VALUES
-	$(error VALUES is required. Usage: make sweep PARAM=density VALUES="0.1 0.2 0.3")
-endif
-	@mkdir -p $(SWEEP_OUTPUT_DIR)
-	@for val in $(VALUES); do \
-		echo "Running $(PARAM)=$$val"; \
-		$(PYTHON) $(MAIN) --config $(CONFIG) --$(PARAM) $$val \
-			--output $(SWEEP_OUTPUT_DIR)/$(PARAM)_$$val; \
-	done
+.PHONY: demo-matplotlib
+demo-matplotlib:  ## Run matplotlib analytics demo
+	$(PYTHON) scripts/demo_matplotlib.py
 
-.PHONY: sweep-parallel
-sweep-parallel:  ## Run parameter sweep in parallel across values
-ifndef PARAM
-	$(error PARAM is required. Usage: make sweep-parallel PARAM=density VALUES="0.1 0.2 0.3")
-endif
-ifndef VALUES
-	$(error VALUES is required. Usage: make sweep-parallel PARAM=density VALUES="0.1 0.2 0.3")
-endif
-	@mkdir -p $(SWEEP_OUTPUT_DIR)
-	@echo "Running parallel sweep for $(PARAM) with values: $(VALUES)"
-	@echo '$(VALUES)' | tr ' ' '\n' | xargs -P $(NCPUS) -I {} \
-		$(PYTHON) $(MAIN) --config $(CONFIG) --$(PARAM) {} \
-			--output $(SWEEP_OUTPUT_DIR)/$(PARAM)_{}
+.PHONY: demo-avalanche
+demo-avalanche:  ## Run avalanche analytics demo
+	$(PYTHON) scripts/demo_avalanche_analytics.py
+
+.PHONY: demo-sweep
+demo-sweep:  ## Run SOC parameter sweep
+	$(PYTHON) scripts/soc_parameter_sweep.py
 
 # =============================================================================
 # HPC / Supercomputer Support
 # =============================================================================
 .PHONY: submit-slurm
-submit-slurm:  ## Submit job to SLURM scheduler
+submit-slurm:  ## Submit headless job to SLURM scheduler
 	@echo "#!/bin/bash" > $(OUTPUT_DIR)/job.slurm
 	@echo "#SBATCH --job-name=$(SLURM_JOB_NAME)" >> $(OUTPUT_DIR)/job.slurm
 	@echo "#SBATCH --partition=$(SLURM_PARTITION)" >> $(OUTPUT_DIR)/job.slurm
@@ -222,36 +199,27 @@ submit-slurm:  ## Submit job to SLURM scheduler
 	@echo "" >> $(OUTPUT_DIR)/job.slurm
 	@echo "module load python/$(PYTHON_VERSION) || true" >> $(OUTPUT_DIR)/job.slurm
 	@echo "source .venv/bin/activate" >> $(OUTPUT_DIR)/job.slurm
-	@echo "$(PYTHON) $(MAIN) --config $(CONFIG) --ncpus \$$SLURM_CPUS_ON_NODE" >> $(OUTPUT_DIR)/job.slurm
+	@echo "$(PYTHON) $(MAIN) --config $(CONFIG) --headless --steps $(STEPS) --verbose" >> $(OUTPUT_DIR)/job.slurm
 	sbatch $(OUTPUT_DIR)/job.slurm
 	@echo "Job submitted. Check status with: squeue -u \$$USER"
 
 .PHONY: submit-sweep-slurm
-submit-sweep-slurm:  ## Submit parameter sweep as SLURM array job
-ifndef PARAM
-	$(error PARAM is required)
-endif
-ifndef VALUES
-	$(error VALUES is required)
-endif
-	@mkdir -p $(SWEEP_OUTPUT_DIR)
-	@echo '$(VALUES)' | tr ' ' '\n' > $(OUTPUT_DIR)/sweep_values.txt
-	@NUM_VALS=$$(wc -l < $(OUTPUT_DIR)/sweep_values.txt | tr -d ' '); \
-	echo "#!/bin/bash" > $(OUTPUT_DIR)/sweep.slurm; \
-	echo "#SBATCH --job-name=$(SLURM_JOB_NAME)-sweep" >> $(OUTPUT_DIR)/sweep.slurm; \
-	echo "#SBATCH --partition=$(SLURM_PARTITION)" >> $(OUTPUT_DIR)/sweep.slurm; \
-	echo "#SBATCH --array=1-$$NUM_VALS" >> $(OUTPUT_DIR)/sweep.slurm; \
-	echo "#SBATCH --time=$(SLURM_TIME)" >> $(OUTPUT_DIR)/sweep.slurm; \
-	echo "#SBATCH --output=$(SWEEP_OUTPUT_DIR)/slurm-%A_%a.out" >> $(OUTPUT_DIR)/sweep.slurm; \
-	echo "" >> $(OUTPUT_DIR)/sweep.slurm; \
-	echo "VAL=\$$(sed -n \"\$${SLURM_ARRAY_TASK_ID}p\" $(OUTPUT_DIR)/sweep_values.txt)" >> $(OUTPUT_DIR)/sweep.slurm; \
-	echo "source .venv/bin/activate" >> $(OUTPUT_DIR)/sweep.slurm; \
-	echo "$(PYTHON) $(MAIN) --config $(CONFIG) --$(PARAM) \$$VAL --output $(SWEEP_OUTPUT_DIR)/$(PARAM)_\$$VAL" >> $(OUTPUT_DIR)/sweep.slurm; \
+submit-sweep-slurm:  ## Submit parameter sweep as SLURM job
+	@echo "#!/bin/bash" > $(OUTPUT_DIR)/sweep.slurm
+	@echo "#SBATCH --job-name=$(SLURM_JOB_NAME)-sweep" >> $(OUTPUT_DIR)/sweep.slurm
+	@echo "#SBATCH --partition=$(SLURM_PARTITION)" >> $(OUTPUT_DIR)/sweep.slurm
+	@echo "#SBATCH --nodes=$(SLURM_NODES)" >> $(OUTPUT_DIR)/sweep.slurm
+	@echo "#SBATCH --time=$(SLURM_TIME)" >> $(OUTPUT_DIR)/sweep.slurm
+	@echo "#SBATCH --output=$(OUTPUT_DIR)/sweep-%j.out" >> $(OUTPUT_DIR)/sweep.slurm
+	@echo "" >> $(OUTPUT_DIR)/sweep.slurm
+	@echo "module load python/$(PYTHON_VERSION) || true" >> $(OUTPUT_DIR)/sweep.slurm
+	@echo "source .venv/bin/activate" >> $(OUTPUT_DIR)/sweep.slurm
+	@echo "$(PYTHON) scripts/soc_parameter_sweep.py" >> $(OUTPUT_DIR)/sweep.slurm
 	sbatch $(OUTPUT_DIR)/sweep.slurm
-	@echo "Array job submitted for $(PARAM) sweep"
+	@echo "Sweep job submitted."
 
 .PHONY: submit-pbs
-submit-pbs:  ## Submit job to PBS/Torque scheduler
+submit-pbs:  ## Submit headless job to PBS/Torque scheduler
 	@echo "#!/bin/bash" > $(OUTPUT_DIR)/job.pbs
 	@echo "#PBS -N $(PROJECT_NAME)" >> $(OUTPUT_DIR)/job.pbs
 	@echo "#PBS -l nodes=$(SLURM_NODES):ppn=$(SLURM_TASKS_PER_NODE)" >> $(OUTPUT_DIR)/job.pbs
@@ -260,7 +228,7 @@ submit-pbs:  ## Submit job to PBS/Torque scheduler
 	@echo "" >> $(OUTPUT_DIR)/job.pbs
 	@echo "cd \$$PBS_O_WORKDIR" >> $(OUTPUT_DIR)/job.pbs
 	@echo "source .venv/bin/activate" >> $(OUTPUT_DIR)/job.pbs
-	@echo "$(PYTHON) $(MAIN) --config $(CONFIG) --ncpus \$$PBS_NP" >> $(OUTPUT_DIR)/job.pbs
+	@echo "$(PYTHON) $(MAIN) --config $(CONFIG) --headless --steps $(STEPS) --verbose" >> $(OUTPUT_DIR)/job.pbs
 	qsub $(OUTPUT_DIR)/job.pbs
 
 # =============================================================================

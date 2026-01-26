@@ -284,7 +284,7 @@ def main(config_path: Path = DEFAULT_CONFIG_PATH, show_plots: bool = True) -> No
             accumulator += dt
             step_dt = 1.0 / max(0.1, steps_per_second)
             while accumulator >= step_dt:
-                simulation.step()
+                do_step()
                 accumulator -= step_dt
 
         screen.fill(BG)

@@ -5,11 +5,12 @@ Run with: python scripts/demo_matplotlib.py
 """
 
 import sys
-import time
 from pathlib import Path
 
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import matplotlib.pyplot as plt
 
 from src.config.loader import load_config
 from src.core.network import Network
@@ -67,7 +68,7 @@ def main() -> None:
         for _ in range(500):
             simulation.step()
             view.update_from_simulation(simulation)
-            time.sleep(0.05)  # 20 FPS
+            plt.pause(0.05)  # Non-blocking: processes GUI events
     except KeyboardInterrupt:
         print("\nInterrupted by user")
     finally:

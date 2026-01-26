@@ -10,13 +10,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from numpy import ndarray
 
 
 if TYPE_CHECKING:
@@ -42,6 +41,7 @@ class AvalancheAnalyticsView:
     # Internal state
     _fig: Figure | None = field(default=None, init=False, repr=False)
     _axes: dict[str, Axes] = field(default_factory=dict, init=False, repr=False)
+    _lines: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
     _time_steps: list[int] = field(default_factory=list, init=False, repr=False)
     _firing_counts: list[int] = field(default_factory=list, init=False, repr=False)
     _nonfiring_counts: list[int] = field(default_factory=list, init=False, repr=False)
@@ -65,6 +65,23 @@ class AvalancheAnalyticsView:
             "duration_normal": axes[2, 0],
             "duration_loglog": axes[2, 1],
         }
+
+        # Set up persistent line objects for time-series plots
+        ax_firing = self._axes["firing"]
+        (self._lines["firing"],) = ax_firing.plot([], [], "r-", linewidth=1, label="Firing")
+        (self._lines["total"],) = ax_firing.plot([], [], "b-", linewidth=1, alpha=0.5, label="Non-firing")
+        ax_firing.set_xlabel("Time Step")
+        ax_firing.set_ylabel("Neuron Count")
+        ax_firing.set_title("Firing vs Non-firing Neurons")
+        ax_firing.legend(loc="upper right")
+        ax_firing.grid(True, alpha=0.3)
+
+        ax_weight = self._axes["weight"]
+        (self._lines["weight"],) = ax_weight.plot([], [], "b-", linewidth=1.5)
+        ax_weight.set_xlabel("Time Step")
+        ax_weight.set_ylabel("Average Weight")
+        ax_weight.set_title("Average Synaptic Weight Over Time")
+        ax_weight.grid(True, alpha=0.3)
 
         self._fig.suptitle("Avalanche Analytics", fontsize=14)
         self._fig.tight_layout(rect=[0, 0, 1, 0.96])
@@ -121,41 +138,28 @@ class AvalancheAnalyticsView:
         self._fig.canvas.flush_events()
 
     def _update_firing_plot(self, n_neurons: int) -> None:
-        """Update firing/non-firing neurons time series."""
+        """Update firing/non-firing neurons time series using set_data."""
+        self._lines["firing"].set_data(self._time_steps, self._firing_counts)
+        totals = [f + nf for f, nf in zip(self._firing_counts, self._nonfiring_counts)]
+        self._lines["total"].set_data(self._time_steps, totals)
+
         ax = self._axes["firing"]
-        ax.clear()
-        ax.fill_between(
-            self._time_steps,
-            0,
-            self._firing_counts,
-            alpha=0.7,
-            label="Firing",
-            color="red",
-        )
-        ax.fill_between(
-            self._time_steps,
-            self._firing_counts,
-            [f + nf for f, nf in zip(self._firing_counts, self._nonfiring_counts)],
-            alpha=0.7,
-            label="Non-firing",
-            color="blue",
-        )
-        ax.set_xlabel("Time Step")
-        ax.set_ylabel("Neuron Count")
-        ax.set_title("Firing vs Non-firing Neurons")
+        if self._time_steps:
+            ax.set_xlim(self._time_steps[0], self._time_steps[-1])
         ax.set_ylim(0, n_neurons)
-        ax.legend(loc="upper right")
-        ax.grid(True, alpha=0.3)
 
     def _update_weight_plot(self) -> None:
-        """Update average weight line plot."""
+        """Update average weight line plot using set_data."""
+        self._lines["weight"].set_data(self._time_steps, self._avg_weights)
+
         ax = self._axes["weight"]
-        ax.clear()
-        ax.plot(self._time_steps, self._avg_weights, "b-", linewidth=1.5)
-        ax.set_xlabel("Time Step")
-        ax.set_ylabel("Average Weight")
-        ax.set_title("Average Synaptic Weight Over Time")
-        ax.grid(True, alpha=0.3)
+        if self._time_steps:
+            ax.set_xlim(self._time_steps[0], self._time_steps[-1])
+        if self._avg_weights:
+            ymin = min(self._avg_weights)
+            ymax = max(self._avg_weights)
+            margin = max((ymax - ymin) * 0.1, 0.001)
+            ax.set_ylim(ymin - margin, ymax + margin)
 
     def _update_size_distribution(self) -> None:
         """Update avalanche size distribution (normal scale)."""

@@ -1,0 +1,8 @@
+Running 432 parameter combinations...
+[1/432] leak=0.05, reset=0.3, decay=0.0002, oja=0.001, thresh=0.35 -> avalanches=1, BR=0.726, slope=0.00
+[2/432] leak=0.05, reset=0.3, decay=0.0002, oja=0.001, thresh=0.40 -> avalanches=1, BR=0.726, slope=0.00
+[3/432] leak=0.05, reset=0.3, decay=0.0002, oja=0.001, thresh=0.45 -> avalanches=1, BR=0.727, slope=0.00
+[4/432] leak=0.05, reset=0.3, decay=0.0002, oja=0.002, thresh=0.35 -> avalanches=1, BR=0.726, slope=0.00
+[5/432] leak=0.05, reset=0.3, decay=0.0002, oja=0.002, thresh=0.40 -> avalanches=1, BR=0.726, slope=0.00
+[6/432] leak=0.05, reset=0.3, decay=0.0002, oja=0.002, thresh=0.45 -> avalanches=1, BR=0.727, slope=0.00
+[7/432] leak=0.05, reset=0.3, decay=0.0002, oja=0.004, thresh=0.35 -> 
