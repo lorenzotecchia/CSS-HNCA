@@ -132,15 +132,15 @@ def run_single_sweep(
     config = load_config(Path("config/default.toml"))
 
     # Fixed parameters (from default config)
-    n_neurons = 350
-    box_size = (15.0, 15.0, 15.0)
-    radius = 2.0
-    initial_weight = 0.06
-    weight_min = 0.0
-    weight_max = 0.3
-    initial_firing_fraction = 0.20
-    learning_rate = 0.004
-    forgetting_rate = 0.004
+    n_neurons = config.network.n_neurons
+    box_size = config.network.box_size
+    radius = config.network.radius
+    initial_weight = config.network.initial_weight
+    weight_min = config.network.weight_min
+    weight_max = config.network.weight_max
+    initial_firing_fraction = config.network.initial_firing_fraction
+    learning_rate = config.learning.learning_rate
+    forgetting_rate = config.learning.forgetting_rate
 
     # Create network with backend
     network = Network.create_random(
@@ -148,6 +148,7 @@ def run_single_sweep(
         box_size=box_size,
         radius=radius,
         initial_weight=initial_weight,
+        excitatory_fraction=config.network.excitatory_fraction,
         seed=seed,
         backend=backend,
     )
@@ -171,6 +172,8 @@ def run_single_sweep(
         weight_max=weight_max,
         decay_alpha=decay_alpha,
         oja_alpha=oja_alpha,
+        weight_min_inh=config.network.weight_min_inh,
+        weight_max_inh=config.network.weight_max_inh,
         backend=backend,
     )
 
@@ -307,7 +310,9 @@ def main() -> None:
 
             # Collect avalanche data with parameters
             for a in view.detector.avalanches:
-                all_avalanches.append((leak, reset, decay, oja, thresh, a.size, a.duration))
+                all_avalanches.append(
+                    (leak, reset, decay, oja, thresh, a.size, a.duration)
+                )
 
             print(
                 f"avalanches={result.n_avalanches}, "
@@ -365,7 +370,15 @@ def main() -> None:
     with open(avalanche_path, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(
-            ["leak_rate", "reset_potential", "decay_alpha", "oja_alpha", "threshold", "size", "duration"]
+            [
+                "leak_rate",
+                "reset_potential",
+                "decay_alpha",
+                "oja_alpha",
+                "threshold",
+                "size",
+                "duration",
+            ]
         )
         for row in all_avalanches:
             writer.writerow(row)
