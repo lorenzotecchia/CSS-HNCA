@@ -107,7 +107,7 @@ def run_single_sweep(
     oja_alpha: float,
     threshold: float,
     view: AvalancheAnalyticsView,
-    target_avalanches: int = 100,
+    target_avalanches: int = 1000,
     seed: int = 42,
 ) -> SweepResult:
     """Run a single simulation with given parameters.
@@ -217,7 +217,8 @@ def run_single_sweep(
             if simulation.firing_count == 0:
                 restart_count += 1
                 simulation.state.reinitialize_firing(
-                    firing_fraction=config.network.firing_count / config.network.n_neurons,
+                    firing_fraction=config.network.firing_count
+                    / config.network.n_neurons,
                     seed=config.seed + restart_count,
                 )
     except KeyboardInterrupt:

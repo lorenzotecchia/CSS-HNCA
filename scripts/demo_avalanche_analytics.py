@@ -73,7 +73,7 @@ def main() -> None:
     # Create visualization
     view = AvalancheAnalyticsView(
         detector=detector,
-        target_avalanches=100,
+        target_avalanches=1000,
         update_interval=10,
     )
     view.initialize()
@@ -100,7 +100,8 @@ def main() -> None:
                 if restart_count >= view.target_avalanches:
                     break
                 simulation.state.reinitialize_firing(
-                    firing_fraction=config.network.firing_count / config.network.n_neurons,
+                    firing_fraction=config.network.firing_count
+                    / config.network.n_neurons,
                     seed=config.seed + restart_count,
                 )
     except KeyboardInterrupt:
