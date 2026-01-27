@@ -157,7 +157,8 @@ def run_single_sweep(
             if simulation.firing_count == 0:
                 restart_count += 1
                 simulation.state.reinitialize_firing(
-                    firing_fraction=config.network.firing_count / config.network.n_neurons,
+                    firing_fraction=config.network.firing_count
+                    / config.network.n_neurons,
                     seed=config.seed + restart_count,
                 )
     except KeyboardInterrupt:
@@ -208,15 +209,15 @@ def run_single_sweep(
 
 def _run_sweep_task(args: tuple) -> SweepResult | None:
     """Worker function for parallel execution."""
-    rate, total_steps, warmup_steps, idx, n_total = args
+    rates, total_steps, warmup_steps, idx, n_total = args
     print(
         f"[{idx}/{n_total}] rate={rate:.6f} (lr=fr)",
         flush=True,
     )
     try:
         result = run_single_sweep(
-            learning_rate=rate,
-            forgetting_rate=rate,
+            learning_rate=rates[0],
+            forgetting_rate=rates[1],
             total_steps=total_steps,
             warmup_steps=warmup_steps,
         )
@@ -235,15 +236,17 @@ def _run_sweep_task(args: tuple) -> SweepResult | None:
 def main() -> None:
     """Run parameter sweep along diagonal (lr == forgetting_rate) with parallelization."""
     # number of steps and warm up
-    total_steps = 10000
+    total_steps = 5000
     warmup_steps = 1000
-    n_replications = 100
+    n_replications = 3000
 
     # Parameter range for diagonal sweep (1D sampling: lr == forgetting_rate)
-    sampler = qmc.LatinHypercube(d=1)
-    sample = sampler.random(n=n_replications).flatten()
+    sampler = qmc.LatinHypercube(d=2)
+    sample = sampler.random(n=n_replications)
     parameters_bounds = [0.00001, 0.1]
-    rates = (parameters_bounds[1] - parameters_bounds[0]) * sample + parameters_bounds[0]
+    rates = (parameters_bounds[1] - parameters_bounds[0]) * sample + parameters_bounds[
+        0
+    ]
 
     # Number of parallel workers (leave some CPUs free)
     n_workers = max(1, cpu_count() - 2)
@@ -254,7 +257,7 @@ def main() -> None:
 
     # Prepare task arguments
     tasks = [
-        (rate, total_steps, warmup_steps, idx + 1, n_replications)
+        (rates, total_steps, warmup_steps, idx + 1, n_replications)
         for idx, rate in enumerate(rates)
     ]
 

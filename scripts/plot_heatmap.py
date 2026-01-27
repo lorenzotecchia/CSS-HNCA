@@ -8,8 +8,12 @@ df = pd.read_csv("output/learning_forgetting_sweep_heatmap.csv")
 
 # Create grid for interpolation
 n_grid = 50
-learning_rates = np.linspace(df["learning_rate"].min(), df["learning_rate"].max(), n_grid)
-forgetting_rates = np.linspace(df["forgetting_rate"].min(), df["forgetting_rate"].max(), n_grid)
+learning_rates = np.linspace(
+    df["learning_rate"].min(), df["learning_rate"].max(), n_grid
+)
+forgetting_rates = np.linspace(
+    df["forgetting_rate"].min(), df["forgetting_rate"].max(), n_grid
+)
 L, F = np.meshgrid(learning_rates, forgetting_rates)
 
 # Statistics to plot
@@ -30,7 +34,7 @@ for ax, (stat, title) in zip(axes.flat, stats):
         (df["learning_rate"], df["forgetting_rate"]),
         df[stat],
         (L, F),
-        method="cubic",
+        method="linear",
     )
 
     # Plot heatmap
@@ -41,6 +45,8 @@ for ax, (stat, title) in zip(axes.flat, stats):
     plt.colorbar(im, ax=ax)
 
 plt.tight_layout()
-plt.savefig("output/learning_forgetting_sweep_heatmap.png", dpi=150, bbox_inches="tight")
+plt.savefig(
+    "output/learning_forgetting_sweep_heatmap.png", dpi=150, bbox_inches="tight"
+)
 print("Plot saved to output/learning_forgetting_sweep_heatmap.png")
 plt.show()
