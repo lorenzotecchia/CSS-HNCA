@@ -95,12 +95,14 @@ class SimulationConfig:
         learning: Learning parameters configuration
         visualization: Visualization settings
         seed: Random seed (None for random initialization)
+        use_gpu: Whether to use JAX GPU acceleration
     """
 
     network: NetworkConfig
     learning: LearningConfig
     visualization: VisualizationConfig
     seed: int | None
+    use_gpu: bool = False
 
 
 def _validate_network_config(data: dict[str, Any]) -> None:
@@ -261,9 +263,13 @@ def load_config(path: Path) -> SimulationConfig:
     if seed is not None:
         seed = int(seed)
 
+    # GPU acceleration is optional (default False)
+    use_gpu = bool(data.get("use_gpu", False))
+
     return SimulationConfig(
         network=network,
         learning=learning,
         visualization=visualization,
         seed=seed,
+        use_gpu=use_gpu,
     )

@@ -130,6 +130,7 @@ def create_simulation_from_config(config_path: Path) -> Simulation:
         learning_rate=config.learning.learning_rate,
         forgetting_rate=config.learning.forgetting_rate,
         learner=learner,
+        use_gpu=config.use_gpu,
     )
 
 

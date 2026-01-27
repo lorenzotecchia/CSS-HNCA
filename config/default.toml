@@ -1,21 +1,22 @@
 seed = 42
+use_gpu = true # Enable JAX GPU acceleration (requires jax-metal on Apple Silicon)
 
 [network]
-n_neurons = 200
-firing_count = 0  # number of neurons firing at t=0
-leak_rate = 0.08               # LIF: slower leak to sustain activity
-reset_potential = 0.4          # LIF: partial reset after firing
-excitatory_fraction = 1.0      # fraction excitatory (rest are inhibitory)
+n_neurons = 100
+firing_count = 5  # number of neurons firing at t=0 (must be > 0 to bootstrap activity)
+leak_rate = 0.15               # LIF: moderate leak for activity decay
+reset_potential = 0.6          # LIF: reset below threshold to create refractory period
+excitatory_fraction = 0.75     # 75% excitatory, 25% inhibitory for balance
 weight_min = 0.0               # excitatory weight lower bound
 weight_max = 1.0               # excitatory weight upper bound
-weight_min_inh = -0.3          # inhibitory weight lower bound
+weight_min_inh = -0.5          # inhibitory weight lower bound (stronger inhibition)
 weight_max_inh = 0.0           # inhibitory weight upper bound
 k_prop = 0.05                  # average degree proportion for beta network
 beta_a = 2.0                   # beta distribution parameter a
 beta_b = 6.0                   # beta distribution parameter b
 
 [learning]
-threshold = 0.4                  # Lower threshold for easier activation
+threshold = 0.5                  # firing threshold
 learning_rate = 0.01
 forgetting_rate = 0.01          # LTD = LTP for balance
 decay_alpha = 0.0005             # Weak baseline decay
