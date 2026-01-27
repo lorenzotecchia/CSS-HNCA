@@ -5,7 +5,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=128
 #SBATCH --time=00:10:00
-#SBATCH --partition=thin
+#SBATCH --partition=rome
 #SBATCH --output=output/slurm-sweep-%A_%a.out
 #SBATCH --mail-type=END,FAIL
 #SBATCH --mail-user=lorenzo.tecchia@icloud.com

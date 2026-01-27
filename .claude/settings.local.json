@@ -15,7 +15,8 @@
       "Bash(make test-integration:*)",
       "Bash(make test-property:*)",
       "Bash(/usr/bin/env python:*)",
-      "Bash(make run-headless:*)"
+      "Bash(make run-headless:*)",
+      "Bash(ls:*)"
     ]
   }
 }

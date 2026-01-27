@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Parameter Sweep for learning/forgetting rates.
+"""Parameter Sweep for forgetting rate (fixed learning rate).
 
-Runs simulations with different learning/forgetting rate combinations and measures:
+Runs simulations with a fixed learning rate and varying forgetting rates, measuring:
 - Average and std of weight over time (after warm-up)
 - Average and std of firing neuron count
 - Average and std of avalanche size
@@ -209,15 +209,15 @@ def run_single_sweep(
 
 def _run_sweep_task(args: tuple) -> SweepResult | None:
     """Worker function for parallel execution."""
-    rates, total_steps, warmup_steps, idx, n_total = args
+    learning_rate, forgetting_rate, total_steps, warmup_steps, idx, n_total = args
     print(
-        f"[{idx}/{n_total}] rate={rate:.6f} (lr=fr)",
+        f"[{idx}/{n_total}] lr={learning_rate:.6f} (fixed), fr={forgetting_rate:.6f}",
         flush=True,
     )
     try:
         result = run_single_sweep(
-            learning_rate=rates[0],
-            forgetting_rate=rates[1],
+            learning_rate=learning_rate,
+            forgetting_rate=forgetting_rate,
             total_steps=total_steps,
             warmup_steps=warmup_steps,
         )
@@ -234,31 +234,36 @@ def _run_sweep_task(args: tuple) -> SweepResult | None:
 
 
 def main() -> None:
-    """Run parameter sweep along diagonal (lr == forgetting_rate) with parallelization."""
+    """Run forgetting-rate sweep with fixed learning rate."""
     # number of steps and warm up
     total_steps = 5000
     warmup_steps = 1000
     n_replications = 3000
 
-    # Parameter range for diagonal sweep (1D sampling: lr == forgetting_rate)
-    sampler = qmc.LatinHypercube(d=2)
+    # Fixed learning rate from config
+    config = load_config(Path("config/default.toml"))
+    fixed_lr = config.learning.learning_rate
+
+    # 1D Latin Hypercube sampling for forgetting rate only
+    sampler = qmc.LatinHypercube(d=1)
     sample = sampler.random(n=n_replications)
-    parameters_bounds = [0.00001, 0.1]
-    rates = (parameters_bounds[1] - parameters_bounds[0]) * sample + parameters_bounds[
-        0
-    ]
+    fr_bounds = [0.00001, 0.1]
+    forgetting_rates = (
+        (fr_bounds[1] - fr_bounds[0]) * sample[:, 0] + fr_bounds[0]
+    )
 
     # Number of parallel workers (leave some CPUs free)
     n_workers = max(1, cpu_count() - 2)
 
-    print(f"Running {n_replications} diagonal parameter combinations (lr == fr)...")
+    print(f"Running {n_replications} forgetting-rate samples (lr={fixed_lr} fixed)...")
+    print(f"Forgetting rate range: [{fr_bounds[0]}, {fr_bounds[1]}]")
     print(f"Total steps: {total_steps}, Warm-up: {warmup_steps}")
     print(f"Using {n_workers} parallel workers\n")
 
     # Prepare task arguments
     tasks = [
-        (rates, total_steps, warmup_steps, idx + 1, n_replications)
-        for idx, rate in enumerate(rates)
+        (fixed_lr, fr, total_steps, warmup_steps, idx + 1, n_replications)
+        for idx, fr in enumerate(forgetting_rates)
     ]
 
     # Run in parallel
@@ -271,7 +276,7 @@ def main() -> None:
     print(f"\nCompleted {len(results)}/{n_replications} runs successfully")
 
     # Save results to CSV
-    output_path = Path("output/learning_forgetting_sweep.csv")
+    output_path = Path("output/forgetting_rate_sweep.csv")
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     with open(output_path, "w", newline="") as f:

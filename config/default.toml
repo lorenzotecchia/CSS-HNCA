@@ -4,8 +4,8 @@ use_gpu = true # Enable JAX GPU acceleration (requires jax-metal on Apple Silico
 [network]
 n_neurons = 300
 firing_count = 5  # number of neurons firing at t=0 (must be > 0 to bootstrap activity)
-leak_rate = 0.15               # LIF: moderate leak for activity decay
-reset_potential = 0.6          # LIF: reset below threshold to create refractory period
+leak_rate = 1.0               # LIF: moderate leak for activity decay
+reset_potential = 0.0          # LIF: reset below threshold to create refractory period
 excitatory_fraction = 1     # 75% excitatory, 25% inhibitory for balance
 weight_min = 0.0               # excitatory weight lower bound
 weight_max = 1.0               # excitatory weight upper bound
@@ -19,8 +19,8 @@ beta_b = 6.0                   # beta distribution parameter b
 threshold = 0.5                  # firing threshold
 learning_rate = 0.01
 forgetting_rate = 0.01          # LTD = LTP for balance
-decay_alpha = 0.0005             # Weak baseline decay
-oja_alpha = 0.002                # Moderate Oja normalization
+decay_alpha = 0.0             # Weak baseline decay
+oja_alpha = 0.0                # Moderate Oja normalization
 
 [visualization]
 pygame_enabled = true
