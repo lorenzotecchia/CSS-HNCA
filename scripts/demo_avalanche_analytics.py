@@ -24,12 +24,16 @@ def main() -> None:
     config = load_config(Path("config/default.toml"))
 
     # Create simulation
-    network = Network.create_random(
+    network = Network.create_beta_weighted_directed(
         n_neurons=config.network.n_neurons,
-        box_size=config.network.box_size,
-        radius=config.network.radius,
-        initial_weight=config.network.initial_weight,
+        k_prop=config.network.k_prop,
+        a=config.network.beta_a,
+        b=config.network.beta_b,
         excitatory_fraction=config.network.excitatory_fraction,
+        weight_min=config.network.weight_min,
+        weight_max=config.network.weight_max,
+        weight_min_inh=config.network.weight_min_inh,
+        weight_max_inh=config.network.weight_max_inh,
         seed=config.seed,
     )
     learner = HebbianLearner(
@@ -46,7 +50,7 @@ def main() -> None:
     state = NeuronState.create(
         n_neurons=config.network.n_neurons,
         threshold=config.learning.threshold,
-        initial_firing_fraction=config.network.initial_firing_fraction,
+        firing_count=config.network.firing_count,
         seed=config.seed,
         leak_rate=config.network.leak_rate,
         reset_potential=config.network.reset_potential,
@@ -96,7 +100,7 @@ def main() -> None:
                 if restart_count >= view.target_avalanches:
                     break
                 simulation.state.reinitialize_firing(
-                    firing_fraction=config.network.initial_firing_fraction,
+                    firing_fraction=config.network.firing_count / config.network.n_neurons,
                     seed=config.seed + restart_count,
                 )
     except KeyboardInterrupt:

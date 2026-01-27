@@ -21,12 +21,11 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.config.loader import load_config
-from src.core.backend import get_backend
 from src.core.network import Network
 from src.core.neuron_state import NeuronState
 from src.core.simulation import Simulation
 from src.events.avalanche import AvalancheDetector
-from src.learning.hebbian import HebbianLearner
+from src.learning.weight_update import WeightUpdater
 from src.visualization.avalanche_view import AvalancheAnalyticsView
 
 
@@ -126,46 +125,44 @@ def run_single_sweep(
     Returns:
         SweepResult with metrics
     """
-    # Get backend - will use JAX if available, otherwise NumPy
-    backend = get_backend(prefer_gpu=True)
-
     config = load_config(Path("config/default.toml"))
 
     # Fixed parameters (from default config)
     n_neurons = config.network.n_neurons
-    box_size = config.network.box_size
-    radius = config.network.radius
-    initial_weight = config.network.initial_weight
     weight_min = config.network.weight_min
     weight_max = config.network.weight_max
-    initial_firing_fraction = config.network.initial_firing_fraction
     learning_rate = config.learning.learning_rate
     forgetting_rate = config.learning.forgetting_rate
 
-    # Create network with backend
-    network = Network.create_random(
+    # Create network
+    network = Network.create_beta_weighted_directed(
         n_neurons=n_neurons,
-        box_size=box_size,
-        radius=radius,
-        initial_weight=initial_weight,
+        k_prop=config.network.k_prop,
+        a=config.network.beta_a,
+        b=config.network.beta_b,
         excitatory_fraction=config.network.excitatory_fraction,
+        weight_min=weight_min,
+        weight_max=weight_max,
+        weight_min_inh=config.network.weight_min_inh,
+        weight_max_inh=config.network.weight_max_inh,
         seed=seed,
-        backend=backend,
     )
 
-    # Create neuron state with backend
+    # Create neuron state
     state = NeuronState.create(
         n_neurons=n_neurons,
         threshold=threshold,
-        initial_firing_fraction=initial_firing_fraction,
+        firing_count=config.network.firing_count,
         seed=seed,
         leak_rate=leak_rate,
         reset_potential=reset_potential,
-        backend=backend,
     )
 
-    # Create learner with backend
-    learner = HebbianLearner(
+    # Create learner
+    learner = WeightUpdater(
+        enable_stdp=True,
+        enable_oja=True if oja_alpha > 0 else False,
+        enable_homeostatic=False,
         learning_rate=learning_rate,
         forgetting_rate=forgetting_rate,
         weight_min=weight_min,
@@ -174,17 +171,15 @@ def run_single_sweep(
         oja_alpha=oja_alpha,
         weight_min_inh=config.network.weight_min_inh,
         weight_max_inh=config.network.weight_max_inh,
-        backend=backend,
     )
 
-    # Create simulation with backend
+    # Create simulation
     simulation = Simulation(
         network=network,
         state=state,
         learning_rate=learning_rate,
         forgetting_rate=forgetting_rate,
         learner=learner,
-        backend=backend,
     )
 
     # Create avalanche detector
@@ -199,7 +194,7 @@ def run_single_sweep(
     view._time_steps = []
     view._firing_counts = []
     view._nonfiring_counts = []
-    view._branching_ratios = []
+    view._avg_weights = []
     view._last_update_step = 0
 
     # Run simulation and collect metrics
@@ -222,7 +217,7 @@ def run_single_sweep(
             if simulation.firing_count == 0:
                 restart_count += 1
                 simulation.state.reinitialize_firing(
-                    firing_fraction=config.network.initial_firing_fraction,
+                    firing_fraction=config.network.firing_count / config.network.n_neurons,
                     seed=config.seed + restart_count,
                 )
     except KeyboardInterrupt:
