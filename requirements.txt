@@ -3,6 +3,7 @@ matplotlib
 networkx
 pygame
 pandas
+scipy
 jax>=0.4.34; extra == "gpu"
 jaxlib>=0.4.34; extra == "gpu"
 jax-metal>=0.1.1; sys_platform == "darwin" and platform_machine == "arm64" and extra == "gpu"

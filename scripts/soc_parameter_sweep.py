@@ -26,7 +26,6 @@ from src.core.neuron_state import NeuronState
 from src.core.simulation import Simulation
 from src.events.avalanche import AvalancheDetector
 from src.learning.weight_update import WeightUpdater
-from src.visualization.avalanche_view import AvalancheAnalyticsView
 
 
 @dataclass
@@ -106,11 +105,14 @@ def run_single_sweep(
     decay_alpha: float,
     oja_alpha: float,
     threshold: float,
-    view: AvalancheAnalyticsView,
+    max_steps: int = 50000,
     target_avalanches: int = 1000,
     seed: int = 42,
-) -> SweepResult:
+) -> tuple[SweepResult, list]:
     """Run a single simulation with given parameters.
+
+    Returns:
+        Tuple of (SweepResult, list of avalanche (size, duration) tuples).
 
     Args:
         leak_rate: LIF leak rate
@@ -118,8 +120,8 @@ def run_single_sweep(
         decay_alpha: Baseline weight decay
         oja_alpha: Oja normalization strength
         threshold: Firing threshold
-        view: Shared visualization view to reuse
-        target_avalanches: Number of avalanches to simulate,
+        max_steps: Maximum simulation steps
+        target_avalanches: Number of avalanches to simulate
         seed: Random seed
 
     Returns:
@@ -188,30 +190,20 @@ def run_single_sweep(
         quiet_threshold=0.05,  # 5% of neurons = "quiet"
     )
 
-    # Reset the shared view with new detector
-    view.detector = detector
-    view.target_avalanches = target_avalanches
-    view._time_steps = []
-    view._firing_counts = []
-    view._nonfiring_counts = []
-    view._avg_weights = []
-    view._last_update_step = 0
-
     # Run simulation and collect metrics
     activity_history = []
     simulation.start()
 
     restart_count = 0
     try:
-        while not view.should_stop():
+        for _step in range(max_steps):
             simulation.step()
             detector.record_step(simulation.time_step, simulation.firing_count)
-            view.update(
-                time_step=simulation.time_step,
-                firing_count=simulation.firing_count,
-                n_neurons=simulation.network.n_neurons,
-                avg_weight=simulation.average_weight,
-            )
+            activity_history.append(simulation.firing_count)
+
+            # Stop early once we have enough avalanches
+            if len(detector.avalanches) >= target_avalanches:
+                break
 
             # When all neurons stop firing, reinitialize with random fraction
             if simulation.firing_count == 0:
@@ -219,7 +211,7 @@ def run_single_sweep(
                 simulation.state.reinitialize_firing(
                     firing_fraction=config.network.firing_count
                     / config.network.n_neurons,
-                    seed=config.seed + restart_count,
+                    seed=seed + restart_count,
                 )
     except KeyboardInterrupt:
         print("\nInterrupted by user")
@@ -236,18 +228,23 @@ def run_single_sweep(
     avg_activity = float(np.mean(activity_array))
     activity_std = float(np.std(activity_array))
 
-    return SweepResult(
-        leak_rate=leak_rate,
-        reset_potential=reset_potential,
-        decay_alpha=decay_alpha,
-        oja_alpha=oja_alpha,
-        threshold=threshold,
-        n_avalanches=len(detector.avalanches),
-        branching_ratio=branching_ratio,
-        power_law_slope=power_law_slope,
-        avg_activity=avg_activity,
-        activity_std=activity_std,
-        final_avg_weight=simulation.average_weight,
+    avalanche_data = [(a.size, a.duration) for a in detector.avalanches]
+
+    return (
+        SweepResult(
+            leak_rate=leak_rate,
+            reset_potential=reset_potential,
+            decay_alpha=decay_alpha,
+            oja_alpha=oja_alpha,
+            threshold=threshold,
+            n_avalanches=len(detector.avalanches),
+            branching_ratio=branching_ratio,
+            power_law_slope=power_law_slope,
+            avg_activity=avg_activity,
+            activity_std=activity_std,
+            final_avg_weight=simulation.average_weight,
+        ),
+        avalanche_data,
     )
 
 
@@ -274,15 +271,6 @@ def main() -> None:
     all_avalanches: list[tuple[float, float, float, float, float, int, int]] = []
     count = 0
 
-    # Create a single shared view
-    dummy_detector = AvalancheDetector(n_neurons=350, quiet_threshold=0.05)
-    view = AvalancheAnalyticsView(
-        detector=dummy_detector,
-        target_avalanches=100,
-        update_interval=10,
-    )
-    view.initialize()
-
     for leak, reset, decay, oja, thresh in product(
         leak_rates, reset_potentials, decay_alphas, oja_alphas, thresholds
     ):
@@ -294,20 +282,18 @@ def main() -> None:
         )
 
         try:
-            result = run_single_sweep(
+            result, aval_data = run_single_sweep(
                 leak_rate=leak,
                 reset_potential=reset,
                 decay_alpha=decay,
                 oja_alpha=oja,
                 threshold=thresh,
-                view=view,
             )
             results.append(result)
 
-            # Collect avalanche data with parameters
-            for a in view.detector.avalanches:
+            for size, duration in aval_data:
                 all_avalanches.append(
-                    (leak, reset, decay, oja, thresh, a.size, a.duration)
+                    (leak, reset, decay, oja, thresh, size, duration)
                 )
 
             print(
@@ -317,9 +303,6 @@ def main() -> None:
             )
         except Exception as e:
             print(f"ERROR: {e}")
-
-    # Close the shared view
-    view.close()
 
     # Save results to CSV
     output_path = Path("output/soc_sweep_results.csv")
