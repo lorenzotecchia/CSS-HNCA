@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import matplotlib.ticker as mticker
 
 # Load data
 df = pd.read_csv("output/learning_forgetting_sweep.csv")
@@ -20,14 +21,22 @@ ax1.scatter(
     c=df_sorted["n_avalanches"],
     cmap="viridis",
     alpha=0.7,
-    s=40,
+    s=10,
 )
 ax1.set_xlabel("Learning Rate")
 ax1.set_ylabel("Average Weight")
 ax1.set_title("Avg Weight vs Learning Rate")
 ax1.grid(True, alpha=0.3)
 
+formatter = mticker.ScalarFormatter()
+formatter.set_scientific(True)
+formatter.set_powerlimits((0, 0))
+ax1.xaxis.set_major_formatter(formatter)
+
+ax1.xaxis.set_major_locator(mticker.MaxNLocator(6))
+
 # Plot 2: Average Firing Count vs Learning Rate
+
 ax2 = axes[0, 1]
 ax2.scatter(
     df_sorted["learning_rate"],
@@ -35,12 +44,20 @@ ax2.scatter(
     c=df_sorted["n_avalanches"],
     cmap="viridis",
     alpha=0.7,
-    s=40,
+    s=10,
 )
+
 ax2.set_xlabel("Learning Rate")
 ax2.set_ylabel("Average Firing Count")
 ax2.set_title("Avg Firing Count vs Learning Rate")
 ax2.grid(True, alpha=0.3)
+
+formatter = mticker.ScalarFormatter()
+formatter.set_scientific(True)
+formatter.set_powerlimits((0, 0))
+ax2.xaxis.set_major_formatter(formatter)
+
+ax2.xaxis.set_major_locator(mticker.MaxNLocator(6))
 
 # Plot 3: Average Avalanche Size vs Learning Rate
 ax3 = axes[1, 0]
@@ -51,13 +68,20 @@ ax3.scatter(
     c=df_sorted.loc[mask, "n_avalanches"],
     cmap="viridis",
     alpha=0.7,
-    s=40,
+    s=10,
 )
 ax3.set_xlabel("Learning Rate")
 ax3.set_ylabel("Average Avalanche Size")
 ax3.set_title("Avg Avalanche Size vs Learning Rate")
 ax3.grid(True, alpha=0.3)
 ax3.set_yscale("log")
+
+formatter = mticker.ScalarFormatter()
+formatter.set_scientific(True)
+formatter.set_powerlimits((0, 0))
+ax3.xaxis.set_major_formatter(formatter)
+
+ax3.xaxis.set_major_locator(mticker.MaxNLocator(6))
 
 # Plot 4: Number of Avalanches vs Learning Rate
 ax4 = axes[1, 1]
@@ -67,13 +91,20 @@ scatter = ax4.scatter(
     c=df_sorted["avg_weight"],
     cmap="plasma",
     alpha=0.7,
-    s=40,
+    s=10,
 )
 ax4.set_xlabel("Learning Rate")
 ax4.set_ylabel("Number of Avalanches")
 ax4.set_title("N Avalanches vs Learning Rate")
 ax4.grid(True, alpha=0.3)
 plt.colorbar(scatter, ax=ax4, label="Avg Weight")
+
+formatter = mticker.ScalarFormatter()
+formatter.set_scientific(True)
+formatter.set_powerlimits((0, 0))
+ax4.xaxis.set_major_formatter(formatter)
+
+ax4.xaxis.set_major_locator(mticker.MaxNLocator(6))
 
 plt.tight_layout()
 plt.savefig("output/learning_forgetting_sweep_plot.png", dpi=150, bbox_inches="tight")
