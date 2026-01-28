@@ -276,25 +276,27 @@ def main() -> None:
     print(f"Total steps: {total_steps}, Warm-up: {warmup_steps}")
     print(f"Using {n_workers} parallel workers\n")
 
-    # Prepare all tasks (all replications for all parameter combinations)
-    tasks = []
-    for lr, fr in rates:
-        for rep in range(n_replications):
-            seed = 42 + rep * 1000  # Different seed for each replication
-            tasks.append((lr, fr, total_steps, warmup_steps, seed))
+    # Generator to yield tasks lazily instead of building full list in memory
+    def task_generator():
+        for lr, fr in rates:
+            for rep in range(n_replications):
+                seed = 42 + rep * 1000  # Different seed for each replication
+                yield (lr, fr, total_steps, warmup_steps, seed)
 
-    # Run all tasks in parallel
-    with Pool(processes=n_workers) as pool:
-        all_results = pool.map(_run_replication_task, tasks)
-
-    # Group results by parameter combination and aggregate
+    # Run tasks in parallel and aggregate results incrementally
     results_by_params: dict[tuple[float, float], list[SingleRunResult]] = {}
-    for result in all_results:
-        if result is not None:
-            key = (result.learning_rate, result.forgetting_rate)
-            if key not in results_by_params:
-                results_by_params[key] = []
-            results_by_params[key].append(result)
+    completed = 0
+
+    with Pool(processes=n_workers) as pool:
+        for result in pool.imap_unordered(_run_replication_task, task_generator(), chunksize=10):
+            if result is not None:
+                key = (result.learning_rate, result.forgetting_rate)
+                if key not in results_by_params:
+                    results_by_params[key] = []
+                results_by_params[key].append(result)
+            completed += 1
+            if completed % 100 == 0:
+                print(f"Progress: {completed}/{n_total_runs} tasks completed")
 
     # Aggregate each parameter combination
     aggregated_results: list[AggregatedResult] = []
