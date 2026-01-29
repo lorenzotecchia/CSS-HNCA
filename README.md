@@ -69,7 +69,6 @@ python scripts/parameter_sweep.py
 - [Architecture](docs/architecture.md) - Code structure and design decisions
 - [Configuration](docs/configuration.md) - All parameters explained
 - [Usage](docs/usage.md) - Installation, CLI, GPU acceleration
-- [Results](docs/results.md) - Output format and interpretation
 
 ## Testing
 
