@@ -1,143 +1,84 @@
 # CSS-HNCA
-Complex System Simulation for Hebbian Neural Cellular Automaton
 
+[![Tests](https://img.shields.io/badge/tests-212%20passing-brightgreen)]()
+[![Python](https://img.shields.io/badge/python-3.12+-blue)]()
+[![License](https://img.shields.io/badge/license-MIT-green)]()
 
----
+**Complex System Simulation for Hebbian Neural Cellular Automaton**
 
-## Usage of the make file
-Quick start the project using `make venv` to create a virtual environment in python3.12. Then activate the virtual environment with `source .venv/bin/activate` finally use `make install` to install dependencies. Use `make help` to inspect all the other commands available with make.
+A computational neuroscience framework for simulating self-organized criticality (SOC) in spiking neural networks with spike-timing-dependent plasticity (STDP).
 
----
+## Overview
 
-## Parallel Development with Git Worktrees
+CSS-HNCA models networks of leaky integrate-and-fire neurons with Hebbian learning to study how neural systems naturally evolve toward critical dynamics. The simulation implements biologically-inspired plasticity rules (STDP with LTP/LTD) and stability mechanisms (weight decay, Oja normalization) to explore parameter regimes that produce scale-free avalanche distributions characteristic of criticality.
 
-The project has 9 implementation phases (see `memory/plan.md`). You can work on multiple phases simultaneously using **git worktrees** with Copilot CLI.
+Key features:
+- **300+ spiking neurons** with 3D spatial organization
+- **STDP learning** with configurable LTP/LTD rates
+- **LIF dynamics** with membrane potential and leak
+- **Avalanche detection** for SOC metrics (power-law slope, branching ratio)
+- **Backend abstraction** for CPU (NumPy) or GPU (JAX) execution
 
-### Why Worktrees?
-- Work on Phase 3 (Event bus) while someone else works on Phase 4 (Pygame visualization)
-- Each worktree is a separate directory with its own working state
-- All worktrees share the same git repository
-
-### Setting Up a Worktree for a Phase
-
-1. **Start Copilot CLI** in the main repo and ask:
-   ```
-   Create a worktree for phase-3-events
-   ```
-
-2. Copilot will:
-   - Detect/create the `.worktrees/` directory
-   - Verify it's git-ignored
-   - Run `git worktree add .worktrees/phase-3-events -b feature/phase-3-events`
-   - Install dependencies (`make install`)
-   - Run baseline tests
-
-3. **Navigate to the worktree**:
-   ```bash
-   cd .worktrees/phase-3-events
-   ```
-
-4. **Start a new Copilot CLI session** in that directory and work on that phase.
-
-### Example: Working on Multiple Phases
+## Quick Start
 
 ```bash
-# Terminal 1 - Phase 3: Event bus
-cd .worktrees/phase-3-events
-copilot-cli
-# "Implement the EventBus class from the plan"
+# Setup
+make venv && source .venv/bin/activate && make install
 
-# Terminal 2 - Phase 4: Pygame visualization  
-cd .worktrees/phase-4-pygame
-copilot-cli
-# "Implement PygameNetworkView from the plan"
+# Run with visualization
+python main.py
 
-# Terminal 3 - Phase 5: Hebbian learning
-cd .worktrees/phase-5-hebbian
-copilot-cli
-# "Implement Hebbian learning with STDP"
+# Run headless (HPC)
+python main.py --headless --steps 10000 -v
 ```
 
-### Suggested Phase → Worktree Mapping
+## Key Parameters
 
-| Phase | Branch Name | Description |
-|-------|-------------|-------------|
-| 1 | `feature/phase-1-core` | Core skeleton (Network, NeuronState, Simulation) |
-| 2 | `feature/phase-2-config` | Config loader and CLI |
-| 3 | `feature/phase-3-events` | Event bus |
-| 4 | `feature/phase-4-pygame` | Pygame visualization |
-| 5 | `feature/phase-5-hebbian` | Hebbian learning + STDP |
-| 6 | `feature/phase-6-matplotlib` | Matplotlib analytics |
-| 7 | `feature/phase-7-output` | TUI logger + output recorder |
-| 8 | `feature/phase-8-backend` | Backend abstraction (JAX) |
-| 9 | `feature/phase-9-oja` | Oja rule + advanced plasticity |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `n_neurons` | 300 | Network size |
+| `threshold` | 0.4 | Firing threshold |
+| `learning_rate` | 0.01 | STDP potentiation (LTP) |
+| `forgetting_rate` | 0.01 | STDP depression (LTD) |
+| `leak_rate` | 0.08 | Membrane potential decay |
+| `decay_alpha` | 0.0005 | Baseline weight decay |
+| `oja_alpha` | 0.002 | Activity-dependent decay |
 
-### Managing Worktrees
+See [docs/configuration.md](docs/configuration.md) for all parameters.
+
+## Examples
 
 ```bash
-# List all worktrees
-git worktree list
+# Basic simulation
+python examples/basic_simulation.py
 
-# Remove a worktree after merging
-git worktree remove .worktrees/phase-3-events
+# Real-time visualization
+python examples/realtime_visualization.py
 
-# Prune stale worktree references
-git worktree prune
+# Avalanche analysis
+python examples/avalanche_analysis.py
+
+# Parameter sweep for critical dynamics
+python scripts/parameter_sweep.py
 ```
 
-### Tips
-- **Dependencies:** Each worktree needs its own venv. Run `make venv && source .venv/bin/activate && make install` in each.
-- **Independent phases:** Phases 3, 4, 6, 7 can be developed in parallel (they only depend on core).
-- **Sequential phases:** Phase 1 must complete before most others. Phase 5 (learning) integrates with Phase 1 (core).
+## Documentation
 
----
+- [Introduction](docs/introduction.md) - Scientific background and motivation
+- [Methods](docs/methods.md) - Network model, STDP, LIF dynamics
+- [Architecture](docs/architecture.md) - Code structure and design decisions
+- [Configuration](docs/configuration.md) - All parameters explained
+- [Usage](docs/usage.md) - Installation, CLI, GPU acceleration
+- [Results](docs/results.md) - Output format and interpretation
 
-## Development Commands
-
-### Testing
+## Testing
 
 ```bash
-# Run all tests (212 tests)
-make test
-
-# Run tests in parallel (faster)
-make test-fast
-
-# Run with coverage report
-make test-cov
-
-# Run specific test categories
-python -m pytest test/unit/ -v          # Unit tests only
-python -m pytest test/integration/ -v   # Integration tests only
-python -m pytest test/property/ -v      # Property-based tests only
-
-# Run tests for a specific module
-python -m pytest test/unit/test_event_bus.py -v
+make test          # Run all 212 tests
+make test-fast     # Parallel execution
+make test-cov      # With coverage report
 ```
 
-### Linting
+## License
 
-```bash
-make lint          # Run flake8 linter
-```
-
-### Merging Worktree Changes
-
-After completing work in a worktree:
-
-```bash
-# 1. Verify tests pass in the worktree
-make test
-
-# 2. Commit your changes
-git add -A && git commit -m "feat: implement Phase X (TDD complete)"
-
-# 3. Go to main worktree and merge
-cd /path/to/main/CSS-HNCA
-git merge feature/phase-X-branch --no-edit
-
-# 4. Verify tests pass on main
-make test
-
-# 5. Update memory files (commits.md, tests.md, plan.md)
-```
+MIT License - see [LICENSE](LICENSE)
