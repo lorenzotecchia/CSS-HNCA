@@ -26,6 +26,21 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Output files (extensive simulation output)
+output/*.csv
+output/*.npz
+output/**/*.csv
+output/**/*.npz
+!output/sample/
+!output/sample/*
+!output/README.md
+!output/.gitkeep
+
+# HPC cluster output
+output_snellius/
+
+*.tar.gz
+
 # PyInstaller
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
