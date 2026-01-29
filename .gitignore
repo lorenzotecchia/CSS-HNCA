@@ -205,3 +205,19 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Simulation outputs
+output/
+output_*/
+*.tar.gz
+
+# OS files
+.DS_Store
+*/.DS_Store
+
+# Temporary/scratch files
+*.stats
+branch-comparison-report.md
+sweeppare.md
+text_presentation.md
+scripts/miao.py

@@ -141,3 +141,45 @@ make test
 
 # 5. Update memory files (commits.md, tests.md, plan.md)
 ```
+
+---
+
+## Simulation Outputs
+
+All simulation outputs are gitignored and stored locally. The `output/` directory contains results from local runs and parameter sweeps.
+
+### Snellius Supercomputer Runs
+
+Large-scale parameter sweeps were run on the Snellius supercomputer (SURF). Results are stored locally but not tracked in git.
+
+| Directory | Job ID | Configs | Samples/Config | Parameters Swept | Total Runs |
+|-----------|--------|---------|----------------|------------------|------------|
+| `output_snellius/` | 18777853 | 54 | 3,000 LHS | firing_fraction (3), leak/reset (3), k_prop (3), decay/oja (2) | 162,000 |
+| `output_snellius_v2/` | 18818779 | 1,080 | 500 LHS | excitatory_fraction (5), firing_fraction (3), leak/reset (2), k_prop (3), decay_alpha (4), oja_alpha (3) | 540,000 |
+
+**Sweep v1** (`snellius_sweep.py`):
+- 500 neurons, diagonal LHS sampling (learning_rate == forgetting_rate)
+- Grid: 3×3×3×2 = 54 configurations
+- Fixed parameters: excitatory_fraction=1.0, threshold=0.5, beta=(2,6)
+
+**Sweep v2** (`snellius_sweep_v2.py`):
+- 500 neurons, 2D LHS sampling (independent learning_rate, forgetting_rate)
+- Grid: 5×3×2×3×4×3 = 1,080 configurations
+- Features incremental checkpointing and resume capability
+- Zoomed-in around avalanche-producing regimes from v1
+
+### Analysis Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/plot_snellius_sweep.py` | Analyze v1 results |
+| `scripts/plot_snellius_sweep_v2.py` | Analyze v2 results |
+| `scripts/merge_results.py` | Aggregate multi-run results |
+
+### Generated Plots
+
+Results are visualized in `output/plots_snellius/` and `output/plots_snellius_v2/`:
+- Parameter grid heatmaps
+- Learning rate vs metrics by k_prop
+- Decay/Oja interaction effects
+- Excitatory fraction influence
