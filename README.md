@@ -16,7 +16,6 @@ Key features:
 - **300+ spiking neurons** with 3D spatial organization
 - **STDP learning** with configurable LTP/LTD rates
 - **LIF dynamics** with membrane potential and leak
-- **Avalanche detection** for SOC metrics (power-law slope, branching ratio)
 - **Backend abstraction** for CPU (NumPy) or GPU (JAX) execution
 
 ## Quick Start
