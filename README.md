@@ -10,7 +10,7 @@ A computational neuroscience framework for simulating self-organized criticality
 
 ## Overview
 
-CSS-HNCA models networks of leaky integrate-and-fire neurons with Hebbian learning to study how neural systems naturally evolve toward critical dynamics. The simulation implements biologically-inspired plasticity rules (STDP with LTP/LTD) and stability mechanisms (weight decay, Oja normalization) to explore parameter regimes that produce scale-free avalanche distributions characteristic of criticality.
+CSS-HNCA models networks of leaky integrate-and-fire neurons with Hebbian learning to study how neural systems naturally evolve toward critical dynamics. The simulation implements biologically-inspired plasticity rules (STDP with LTP/LTD) and stability mechanisms (weight decay, Oja normalization) to explore parameter regimes that produce first order phase transitions characteristic of criticality.
 
 Key features:
 - **300+ spiking neurons** with 3D spatial organization
