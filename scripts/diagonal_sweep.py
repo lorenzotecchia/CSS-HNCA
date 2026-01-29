@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Parameter Sweep for learning/forgetting rates.
+"""Diagonal Parameter Sweep (learning_rate == forgetting_rate).
 
 Runs simulations with different learning/forgetting rate combinations and measures:
 - Average and std of weight over time (after warm-up)
@@ -7,7 +7,7 @@ Runs simulations with different learning/forgetting rate combinations and measur
 - Average and std of avalanche size
 - Average and std of avalanche duration
 
-Run with: python scripts/avg_weight.py
+Run with: python scripts/diagonal_sweep.py
 """
 
 import csv
