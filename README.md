@@ -10,7 +10,7 @@
 
 **Complex System Simulation for Hebbian Neural Cellular Automaton**
 
-A computational neuroscience framework for simulating self-organized criticality (SOC) in spiking neural networks with spike-timing-dependent plasticity (STDP).
+A computational neuroscience framework for simulating critical behavior in spiking neural networks with spike-timing-dependent plasticity (STDP).
 
 ## Overview
 
