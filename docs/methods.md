@@ -24,6 +24,14 @@ The excitatory fraction parameter controls the proportion of excitatory neurons.
 
 ## Neuron Dynamics
 
+Neurons can be in either one of two states: firing and not-firing. 
+The state s_j of a neuron j at time t is: 
+``` 
+s_j(t) = 0 if j is not-firing at time t
+s_j(t) = 1 if j is firing at time t
+```
+The vector state s_j(t) is updated deterministically throughout the simulation using the following rules.
+
 ### Leaky Integrate-and-Fire (LIF) Model
 
 Each neuron maintains a membrane potential V that integrates incoming activity and decays over time:
