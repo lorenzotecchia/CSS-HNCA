@@ -20,6 +20,26 @@ learning_rate = 0.01
 forgetting_rate = 0.01          # LTD = LTP for balance
 decay_alpha = 0.0005             # Weak baseline decay
 oja_alpha = 0.002                # Moderate Oja normalization
+=======
+n_neurons = 200
+firing_count = 5  # number of neurons firing at t=0 (must be > 0 to bootstrap activity)
+leak_rate = 0.8              # LIF: moderate leak for activity decay
+reset_potential = 0.2          # LIF: reset below threshold to create refractory period
+excitatory_fraction = 1     # 75% excitatory, 25% inhibitory for balance
+weight_min = 0.0               # excitatory weight lower bound
+weight_max = 1.0               # excitatory weight upper bound
+weight_min_inh = -0.5          # inhibitory weight lower bound (stronger inhibition)
+weight_max_inh = 0.0           # inhibitory weight upper bound
+k_prop = 0.05                  # average degree proportion for beta network
+beta_a = 2.0                   # beta distribution parameter a
+beta_b = 6.0                   # beta distribution parameter b
+
+[learning]
+threshold = 0.5                  # firing threshold
+learning_rate = 0.025
+forgetting_rate = 0.03          # LTD = LTP for balance
+decay_alpha = 0.0             # Weak baseline decay
+oja_alpha = 0.0                # Moderate Oja normalization
 
 [visualization]
 pygame_enabled = true
