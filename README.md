@@ -3,6 +3,9 @@
 [![Tests](https://img.shields.io/badge/tests-212%20passing-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.12+-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-green)]()
+
+---
+
 [![git-fame](https://git-fame.cdcl.ml/gh/lorenzotecchia/CSS-HNCA)](https://github.com/lorenzotecchia/CSS-HNCA)
 
 **Complex System Simulation for Hebbian Neural Cellular Automaton**
