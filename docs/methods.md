@@ -30,6 +30,9 @@ The state s_j of a neuron j at time t is:
 s_j(t) = 0 if j is not-firing at time t
 s_j(t) = 1 if j is firing at time t
 ```
+When the network is generated, all neurons are at state 0. At the start of the simulation, a fraction of firing neurons is set to state 1.
+If the activity dies out (all neurons are at state 0), a new input of firing neurons is given to the same network, preserving its weights and connections.
+
 The vector state s_j(t) is updated deterministically throughout the simulation using the following rules.
 
 ### Leaky Integrate-and-Fire (LIF) Model
