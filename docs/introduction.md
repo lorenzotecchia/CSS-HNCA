@@ -2,7 +2,7 @@
 
 ## Overview
 
-CSS-HNCA (Complex System Simulation for Hebbian Neural Cellular Automaton) is a computational neuroscience framework for simulating self-organized criticality (SOC) in neural networks. The simulation models spiking neurons with spike-timing-dependent plasticity (STDP) to study how neural systems naturally evolve toward critical dynamics.
+CSS-HNCA (Complex System Simulation for Hebbian Neural Cellular Automaton) is a computational neuroscience framework for simulating criticality in neural networks. The simulation models spiking neurons with spike-timing-dependent plasticity (STDP) to study how neural systems naturally evolve toward critical dynamics.
 
 ## Scientific Background
 
@@ -11,9 +11,10 @@ CSS-HNCA (Complex System Simulation for Hebbian Neural Cellular Automaton) is a 
 Self-organized criticality (SOC) describes systems that naturally evolve toward a critical state where activity propagates as scale-free avalanches. In neural systems, criticality is hypothesized to optimize information processing, dynamic range, and computational capacity.
 
 Key signatures of criticality:
-- **Power-law avalanche distributions**: Avalanche sizes follow P(s) ~ s^(-τ) with τ ≈ 1.5
-- **Branching ratio ≈ 1.0**: On average, each firing neuron triggers exactly one other neuron
-- **Long-range temporal correlations**: Activity exhibits 1/f noise characteristics
+- **Power-law avalanche distributions**: Avalanche sizes follow P(s) ~ s^(-τ) with τ ≈ 1.5.
+- **Branching ratio ≈ 1.0**: On average, each firing neuron triggers exactly one other neuron.
+- **Long-range temporal correlations**: Activity exhibits 1/f noise characteristics.
+- **phase transition**: from a subcritical to a supercritical regime.
 
 ### Hebbian Learning and STDP
 
