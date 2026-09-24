@@ -12,6 +12,10 @@
 
 A computational neuroscience framework for simulating critical behavior in spiking neural networks with spike-timing-dependent plasticity (STDP).
 
+![Simulation: 300 LIF neurons in 3D (firing in red) and network activity over time](docs/assets/simulation.gif)
+
+<sub>Regenerate with `python scripts/make_readme_gif.py`.</sub>
+
 ## Overview
 
 CSS-HNCA models networks of leaky integrate-and-fire neurons with Hebbian learning to study how neural systems naturally evolve toward critical dynamics. The simulation implements biologically-inspired plasticity rules (STDP with LTP/LTD) and stability mechanisms (weight decay, Oja normalization) to explore parameter regimes that produce first order phase transitions characteristic of criticality.
